@@ -7,6 +7,7 @@ import GallerySection from "@/components/gallery-section";
 import Footer from "@/components/footer";
 import ChatbotWidget from "@/components/chatbot-widget";
 import CommunityFormModal from "@/components/community-form-modal";
+import Announcements from "@/components/announcements-section";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { X } from "lucide-react";
@@ -40,6 +41,7 @@ export default function Home() {
       <HeroSection onOpenCommunityForm={() => setShowForm(true)} />
       <SessionsOverview />
       <ContentLibrary />
+      <Announcements/>
       <GallerySection />
       <Footer />
       <ChatbotWidget />
@@ -56,8 +58,8 @@ export default function Home() {
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
           <div className="bg-white rounded-xl shadow-xl p-6 w-80 relative text-center">
             <img
-              src={user.picture ?? `https://ui-avatars.com/api/?name=${user.name}`}
-              alt={user.name}
+              src={user.picture ?? "/images/person.png"}
+              alt="Person"
               className="w-20 h-20 rounded-full mx-auto mb-4 border-1 border-primary object-cover"
             />
             <h2 className="font-bold text-lg">{user.name}</h2>

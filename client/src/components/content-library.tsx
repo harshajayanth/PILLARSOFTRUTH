@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 import { Mic, BookOpen, Play, Download, Eye } from "lucide-react";
 import { SessionContent } from "@shared/schema";
@@ -134,7 +133,7 @@ export default function ContentLibrary() {
                     </div>
                     <div>
                       <h3 className="font-semibold text-gray-900">{item.title}</h3>
-                      <p className="text-sm text-gray-600">Session {item.session}</p>
+                      <p className="text-sm text-gray-600">Session {item.title}</p>
                     </div>
                   </div>
                   

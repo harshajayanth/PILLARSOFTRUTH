@@ -7,7 +7,7 @@ const __dirname = path.dirname(__filename);
 
 const auth = new google.auth.GoogleAuth({
   keyFile: path.join(__dirname, "../config/service-account-key.json"),
-  scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+  scopes: ["https://www.googleapis.com/auth/drive.readonly","https://www.googleapis.com/auth/drive"],
 });
 
 export const drive = google.drive({

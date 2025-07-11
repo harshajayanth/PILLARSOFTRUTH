@@ -19,11 +19,23 @@ export const chatMessageSchema = z.object({
   senderEmail: z.string().email().optional()
 });
 
+export const AnnouncementSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  date: z.string().datetime({ message: "Invalid date-time format" }),
+  fromtime: z.string(),
+  totime: z.string(),
+  file: z.string(),
+  venue: z.string(),
+  organiser:z.string(),
+  event:z.string()
+});
+
+
 // Session content schema
 export const sessionContentSchema = z.object({
   id: z.string(),
   title: z.string(),
-  session: z.number().min(1).max(3),
   type: z.enum(["recording", "chapter"]),
   description: z.string(),
   fileUrl: z.string().url(),
@@ -55,6 +67,7 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type SessionContent = z.infer<typeof sessionContentSchema>;
 export type GalleryItem = z.infer<typeof galleryItemSchema>;
 export type AuthUser = z.infer<typeof authUserSchema>;
+export type Announcement = z.infer<typeof AnnouncementSchema>;
 
 // API Response schemas
 export const apiResponseSchema = z.object({

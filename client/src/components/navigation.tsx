@@ -36,7 +36,7 @@ export default function Navigation({
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center space-x-8">
-            {["home", "sessions", "recordings", "gallery"].map((id) => (
+            {["home", "sessions", "recordings", "gallery",...(user?.isAuthenticated ? ["announcements"] : [])].map((id) => (
               <button
                 key={id}
                 onClick={() => scrollToSection(id)}
@@ -66,9 +66,9 @@ export default function Navigation({
                 <img
                   src={
                     user.picture ??
-                    `https://ui-avatars.com/api/?name=${user.name}`
+                    "/images/person.png"
                   }
-                  alt={user.name}
+                  alt="Person"
                   className="w-10 h-10 rounded-full shadow-lg border-2 border-primary object-cover transition-all"
                 />
               </button>
@@ -117,7 +117,7 @@ export default function Navigation({
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <div className="flex flex-col space-y-2">
-              {["home", "sessions", "recordings", "gallery"].map((id) => (
+              {["home", "sessions", "recordings", "gallery",...(user?.isAuthenticated ? ["announcements"] : [])].map((id) => (
                 <button
                   key={id}
                   onClick={() => scrollToSection(id)}
@@ -126,7 +126,7 @@ export default function Navigation({
                   {id.charAt(0).toUpperCase() + id.slice(1)}
                 </button>
               ))}
-              <button
+              {!user?.isAuthenticated &&(<button
                 onClick={() => {
                   setShowForm(true);
                   setIsMenuOpen(false);
@@ -134,7 +134,7 @@ export default function Navigation({
                 className="text-left px-4 py-2 text-gray-600 hover:text-primary transition-colors"
               >
                 Contact
-              </button>
+              </button>)}
             </div>
           </div>
         )}

@@ -1,6 +1,7 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { z } from "zod";
+import fetch from "node-fetch";
+import { parse } from "csv-parse/sync";
 import {
   contactFormSchema,
   chatMessageSchema,
@@ -19,7 +20,6 @@ import { drive } from "server/utils/googleDrive";
 dotenv.config();
 
 import { google } from "googleapis";
-import { log } from "console";
 
 // Env vars
 const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || "";
@@ -31,6 +31,8 @@ const MEMBER_EMAIL = process.env.MEMBER_EMAIL || "members@pillarsoftruth.org";
 const GMAIL_PASS_KEY = process.env.GMAIL_PASSKEY;
 const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || "";
 const GOOGLE_GALLERY_FOLDER_ID = process.env.GOOGLE_GALLERY_FOLDER_ID || "";
+const GOOGLE_FORM_URL = process.env.GOOGLE_FORM_URL || "";
+const GOOGLE_SHEET = process.env.GOOGLE_ANNOUNCEMENT_SHEET || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || "supersecret";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -55,8 +57,10 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-
-
+function extractDriveFileId(link: string): string | null {
+  const match = link?.match(/[-\w]{25,}/);
+  return match ? match[0] : null;
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup session middleware
@@ -96,63 +100,63 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ redirectUrl: authUrl });
   });
 
-app.get("/api/auth/callback", async (req: Request, res: Response) => {
-  try {
-    const { code } = req.query;
-    if (!code)
-      return res.status(400).json({ message: "Authorization code missing" });
-
-    const { tokens } = await oauth2Client.getToken(code as string);
-    oauth2Client.setCredentials(tokens);
-
-    const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-    const { data: userInfo } = await oauth2.userinfo.get();
-
-    const userEmail = userInfo.email?.toLowerCase();
-    if (!userEmail) {
-      return res.redirect("/?auth=error&reason=missing_email");
-    }
-
-    // 🔍 Check if email exists in members_email.json
-    let existingEmails: string[] = [];
+  app.get("/api/auth/callback", async (req: Request, res: Response) => {
     try {
-      const raw = fs.readFileSync(MEMBERS_FILE_PATH, "utf-8");
-      existingEmails = JSON.parse(raw).map((email: string) => email.toLowerCase());
-    } catch (err) {
-      console.warn("⚠️ Members file not found or unreadable.");
+      const { code } = req.query;
+      if (!code)
+        return res.status(400).json({ message: "Authorization code missing" });
+
+      const { tokens } = await oauth2Client.getToken(code as string);
+      oauth2Client.setCredentials(tokens);
+
+      const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
+      const { data: userInfo } = await oauth2.userinfo.get();
+
+      const userEmail = userInfo.email?.toLowerCase();
+      if (!userEmail) {
+        return res.redirect("/?auth=error&reason=missing_email");
+      }
+
+      // 🔍 Check if email exists in members_email.json
+      let existingEmails: string[] = [];
+      try {
+        const raw = fs.readFileSync(MEMBERS_FILE_PATH, "utf-8");
+        existingEmails = JSON.parse(raw).map((email: string) =>
+          email.toLowerCase()
+        );
+      } catch (err) {
+        console.warn("⚠️ Members file not found or unreadable.");
+      }
+
+      const isMember = existingEmails.includes(userEmail);
+
+      if (!isMember) {
+        console.warn(`❌ Unauthorized login attempt by: ${userEmail}`);
+        return res.redirect("/?auth=unauthorized"); // You can show a toast on frontend
+      }
+
+      const user: AuthUser = {
+        email: userInfo.email!,
+        name: userInfo.name!,
+        picture: userInfo.picture!,
+        isAuthenticated: true,
+      };
+
+      (req.session as any).user = user;
+      (req.session as any).access_token = tokens.access_token;
+
+      res.cookie("sessionId", req.session.id, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+
+      res.redirect("/?auth=success");
+    } catch (error) {
+      console.error("Auth callback error:", error);
+      res.redirect("/?auth=error");
     }
-
-    const isMember = existingEmails.includes(userEmail);
-
-    if (!isMember) {
-      console.warn(`❌ Unauthorized login attempt by: ${userEmail}`);
-      return res.redirect("/?auth=unauthorized"); // You can show a toast on frontend
-    }
-
-    const user: AuthUser = {
-      email: userInfo.email!,
-      name: userInfo.name!,
-      picture: userInfo.picture!,
-      isAuthenticated: true,
-    };
-
-
-    (req.session as any).user = user;
-    (req.session as any).access_token = tokens.access_token;
-
-    res.cookie("sessionId", req.session.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000,
-    });
-
-    res.redirect("/?auth=success");
-  } catch (error) {
-    console.error("Auth callback error:", error);
-    res.redirect("/?auth=error");
-  }
-});
-
+  });
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {
     req.session.destroy(() => {
@@ -165,17 +169,10 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
   app.get("/api/content", async (req: Request, res: Response) => {
     try {
       const user = (req.session as any).user;
-      const access_token = (req.session as any).access_token;
 
-      if (!user?.isAuthenticated || !access_token) {
+      if (!user?.isAuthenticated) {
         return res.status(401).json({ message: "Authentication required" });
       }
-
-      oauth2Client.setCredentials({ access_token });
-
-      const sessionFilter = req.query.session
-        ? parseInt(req.query.session as string)
-        : undefined;
 
       const response = await drive.files.list({
         q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and trashed=false`,
@@ -187,8 +184,6 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
       const files = response.data.files || [];
 
       const content: SessionContent[] = files.map((file) => {
-        const sessionMatch = file.name?.match(/Session\s*(\d+)/i);
-        const session = sessionMatch ? parseInt(sessionMatch[1]) : 1;
         const isAudio =
           file.mimeType?.includes("audio") ||
           file.name?.match(/\.(mp3|wav|m4a)$/i);
@@ -197,7 +192,6 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
         return {
           id: file.id!,
           title: file.name?.replace(/\.[^/.]+$/, "") || "Untitled",
-          session,
           type: type as "recording" | "chapter",
           description: file.description || "No description available",
           fileUrl: file.webViewLink || file.webContentLink || "",
@@ -207,11 +201,7 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
         };
       });
 
-      const filteredContent = sessionFilter
-        ? content.filter((item) => item.session === sessionFilter)
-        : content;
-
-      res.json(filteredContent);
+      res.json(content);
     } catch (error) {
       console.error("Content fetch error:", error);
       res.status(500).json({ message: "Failed to fetch content" });
@@ -240,12 +230,10 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
         id: file.id!,
         title: file.name?.replace(/\.[^/.]+$/, "") || "Untitled",
         description: file.description || "Community moment",
-        imageUrl: `https://drive.google.com/uc?export=view&id=${file.id}`,
+        imageUrl: `https://drive.google.com/thumbnail?id=${file.id}`,
         createdAt: file.createdTime || new Date().toISOString(),
       }));
 
-
-      
       res.json(galleryItems);
     } catch (error) {
       console.error("Gallery fetch error:", error);
@@ -258,12 +246,10 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
     try {
       const validation = contactFormSchema.safeParse(req.body);
       if (!validation.success) {
-        return res
-          .status(400)
-          .json({
-            message: "Invalid form data",
-            errors: validation.error.errors,
-          });
+        return res.status(400).json({
+          message: "Invalid form data",
+          errors: validation.error.errors,
+        });
       }
 
       const formData = validation.data;
@@ -370,16 +356,13 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
     try {
       const validation = chatMessageSchema.safeParse(req.body);
       if (!validation.success) {
-        return res
-          .status(400)
-          .json({
-            message: "Invalid message data",
-            errors: validation.error.errors,
-          });
+        return res.status(400).json({
+          message: "Invalid message data",
+          errors: validation.error.errors,
+        });
       }
 
       const { message, route } = validation.data;
-      const recipientEmail = route === "admin" ? ADMIN_EMAIL : MEMBER_EMAIL;
 
       const mailOptions: any = {
         from: ADMIN_EMAIL,
@@ -410,6 +393,55 @@ app.get("/api/auth/callback", async (req: Request, res: Response) => {
       console.error("Chat message error:", error);
       res.status(500).json({ message: "Failed to send message" });
     }
+  });
+
+  //Announcements
+  app.get("/api/announcements", async (req, res) => {
+    try {
+      const csvUrl = GOOGLE_SHEET;
+      const response = await fetch(csvUrl!);
+      const csvText = await response.text();
+
+      const records = parse(csvText, {
+        columns: true,
+        skip_empty_lines: true,
+      });
+
+
+
+      // Optional: normalize/clean
+      const announcements = records.map((row: any) => {
+        const fileId = extractDriveFileId(row.Invitation);
+        
+        return {
+          id: `${row.Title}-${row.Time}`,
+          title: row.Title || "Untitled",
+          date: row.Date,
+          fromtime: row.From,
+          totime: row.To,
+          venue: row.Venue || "TBD",
+          organiser: row.Organiser || "TBD",
+          event: row.Event || "TBD",
+         file: fileId ? `https://drive.google.com/file/d/${fileId}/preview` : "",
+        };
+      });
+
+      res.json(announcements);
+    } catch (error) {
+      console.error("Error loading announcements from sheet:", error);
+      res.status(500).json({ message: "Failed to fetch announcements" });
+    }
+  });
+
+  // Redirect to the announcement form URL
+  app.get("/api/create-announcement", (req, res) => {
+    const redirectUrl = GOOGLE_FORM_URL;
+
+    if (!redirectUrl) {
+      return res.status(500).send("Redirect URL not configured");
+    }
+
+    res.redirect(redirectUrl);
   });
 
   const httpServer = createServer(app);
