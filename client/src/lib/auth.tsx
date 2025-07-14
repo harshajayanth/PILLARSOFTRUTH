@@ -10,6 +10,7 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
+
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function useAuth() {

@@ -7,7 +7,9 @@ export default function AnnouncementSection() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [sentAnnouncements, setSentAnnouncements] = useState<string[]>([]);
   const { user } = useAuth();
+  const [sendingId, setSendingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/api/announcements")
@@ -27,6 +29,29 @@ export default function AnnouncementSection() {
         setLoading(false);
       });
   }, []);
+
+  const sendAnnouncement = async (a: Announcement) => {
+    try {
+      setSendingId(a.id); // Start sending
+      const res = await fetch("/api/send-announcement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(a),
+      });
+
+      if (res.ok) {
+        setSentAnnouncements((prev) => [...prev, a.id]);
+      } else {
+        const error = await res.json();
+        alert("Failed to send email: " + error.message);
+      }
+    } catch (err) {
+      console.error("Send error:", err);
+      alert("Error sending announcement");
+    } finally {
+      setSendingId(null); // Reset after sending
+    }
+  };
 
   if (!user?.isAuthenticated) return null;
 
@@ -69,25 +94,40 @@ export default function AnnouncementSection() {
               >
                 {/* ── Body ─────────────────── */}
                 <div className="p-4 space-y-2">
-                  <h3 className="text-[25px] font-bold text-primary mb-5">
+                  <h3 className="text-[20px] font-bold text-primary mb-3 flex justify-between items-center gap-2">
                     {a.title}
+                    {sentAnnouncements.includes(a.id) ? (
+                      <div className="flex items-center text-green-600 bg-green-100 px-2 py-1 rounded text-sm gap-1">
+                        <span className="material-icons">check</span>
+                        Sent
+                      </div>
+                    ) : sendingId === a.id ? (
+                      <div className="flex items-center text-gray-500 bg-gray-100 px-2 py-1 rounded text-sm gap-1">
+                        Sending...
+                      </div>
+                    ) : (
+                      <button
+                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm border border-blue-200 rounded px-2 py-1"
+                        onClick={() => sendAnnouncement(a)}
+                      >
+                        <span className="material-icons" title="Send Gmail">mail</span>
+                      </button>
+                    )}
                   </h3>
 
-                  <div className="text-[18px] text-gray-700 flex flex-col items-start font-medium gap-1">
+                  <div className="text-[16px] text-gray-700 flex flex-col items-start font-medium gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="material-icons text-base text-[20px]">
+                      <span className="material-icons text-[20px]">
                         handshake
                       </span>
                       <span>{a.event}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="material-icons text-base text-[20px]">
-                        event
-                      </span>
+                      <span className="material-icons text-[20px]">event</span>
                       <span>{a.date}</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="material-icons text-base text-[20px]">
+                      <span className="material-icons text-[20px]">
                         schedule
                       </span>
                       <span>
@@ -96,17 +136,13 @@ export default function AnnouncementSection() {
                     </div>
                   </div>
 
-                  <div className="text-[18px] text-gray-700 flex items-center gap-2 font-medium">
-                    <span className="material-icons text-base text-[20px]">
-                      place
-                    </span>
+                  <div className="text-[16px] text-gray-700 flex items-center gap-2 font-medium">
+                    <span className="material-icons text-[20px]">place</span>
                     <span>{a.venue}</span>
                   </div>
 
-                  <div className="text-[18px] text-gray-700 flex items-center gap-2 font-medium">
-                    <span className="material-icons text-base text-[20px]">
-                      person
-                    </span>
+                  <div className="text-[16px] text-gray-700 flex items-center gap-2 font-medium">
+                    <span className="material-icons text-[20px]">person</span>
                     <span>{a.organiser}</span>
                   </div>
                 </div>

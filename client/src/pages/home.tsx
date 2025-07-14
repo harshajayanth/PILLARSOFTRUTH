@@ -7,17 +7,39 @@ import GallerySection from "@/components/gallery-section";
 import Footer from "@/components/footer";
 import ChatbotWidget from "@/components/chatbot-widget";
 import CommunityFormModal from "@/components/community-form-modal";
+import DonateModal from "@/components/DonateModal"
 import Announcements from "@/components/announcements-section";
+import Parent from "@/components/parent";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
+import SignOutModal from "@/components/signoutModal";
+
 
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showDonateModal, setShowDonateModal] = useState(false);
   const { toast } = useToast();
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const [formData, setFormData] = useState({
+    name: user?.name || "",
+    email: user?.email || "",
+    phone: "",
+    purpose: "",
+    amount: "",
+  });
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.amount || !formData.purpose) return;
+    navigate("/payment", { state: formData });
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -36,13 +58,15 @@ export default function Home() {
       <Navigation
         onOpenCommunityForm={() => setShowForm(true)}
         onOpenProfileModal={() => setShowProfileModal(true)}
+        onOpenDonateModal={() => setShowDonateModal(true)}
       />
 
       <HeroSection onOpenCommunityForm={() => setShowForm(true)} />
       <SessionsOverview />
       <ContentLibrary />
-      <Announcements/>
+      <Announcements />
       <GallerySection />
+      <Parent />
       <Footer />
       <ChatbotWidget />
 
@@ -54,36 +78,11 @@ export default function Home() {
       />
 
       {/* ✅ Sign Out Modal */}
-      {showProfileModal && user && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-80 relative text-center">
-            <img
-              src={user.picture ?? "/images/person.png"}
-              alt="Person"
-              className="w-20 h-20 rounded-full mx-auto mb-4 border-1 border-primary object-cover"
-            />
-            <h2 className="font-bold text-lg">{user.name}</h2>
-            <p className="text-gray-500 text-sm mb-4">{user.email}</p>
+      {showProfileModal && <SignOutModal onClose={() => setShowProfileModal(false)} />}
 
-            <Button
-              onClick={() => {
-                logout();
-                setShowProfileModal(false);
-              }}
-              className="bg-red-500 text-white w-full hover:bg-red-600"
-            >
-              Sign Out
-            </Button>
 
-            <button
-              onClick={() => setShowProfileModal(false)}
-              className="absolute top-2 right-2 text-gray-500 hover:text-black"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-        </div>
-      )}
+      {/* Donate Modal */}
+      {showDonateModal && <DonateModal onClose={() => setShowDonateModal(false)} />}
     </div>
   );
 }

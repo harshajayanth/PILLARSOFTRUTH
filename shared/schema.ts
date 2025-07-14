@@ -22,7 +22,7 @@ export const chatMessageSchema = z.object({
 export const AnnouncementSchema = z.object({
   id: z.string(),
   title: z.string(),
-  date: z.string().datetime({ message: "Invalid date-time format" }),
+  date: z.string(),
   fromtime: z.string(),
   totime: z.string(),
   file: z.string(),
@@ -58,6 +58,7 @@ export const authUserSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   picture: z.string(),
+  role:z.string(),
   isAuthenticated: z.boolean()
 });
 

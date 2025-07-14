@@ -6,13 +6,16 @@ import { Church, Menu, X } from "lucide-react";
 export default function Navigation({
   onOpenCommunityForm,
   onOpenProfileModal,
+  onOpenDonateModal,
 }: {
   onOpenCommunityForm: () => void;
   onOpenProfileModal: () => void;
+  onOpenDonateModal:() => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, login } = useAuth();
   const [showForm, setShowForm] = useState(false);
+  const [showDonateModal, setShowDonateModal] = useState(false);
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -36,7 +39,13 @@ export default function Navigation({
 
           {/* Desktop Nav Links */}
           <div className="hidden md:flex items-center space-x-8">
-            {["home", "sessions", "recordings", "gallery",...(user?.isAuthenticated ? ["announcements"] : [])].map((id) => (
+            {[
+              "home",
+              "sessions",
+              "recordings",
+              "gallery",
+              ...(user?.isAuthenticated ? ["announcements"] : []),
+            ].map((id) => (
               <button
                 key={id}
                 onClick={() => scrollToSection(id)}
@@ -59,19 +68,27 @@ export default function Navigation({
           {/* Right Side: Auth & Menu */}
           <div className="flex items-center space-x-4">
             {user?.isAuthenticated ? (
-              <button
-                onClick={onOpenProfileModal}
-                className="focus:outline-none"
-              >
-                <img
-                  src={
-                    user.picture ??
-                    "/images/person.png"
-                  }
-                  alt="Person"
-                  className="w-10 h-10 rounded-full shadow-lg border-2 border-primary object-cover transition-all"
-                />
-              </button>
+              <>
+                <Button
+                  onClick={onOpenDonateModal}
+                  className="bg-green-800 text-white border border-green-600 hover:bg-green-700 transition"
+                >
+                  Donate
+                </Button>
+                <button
+                  onClick={onOpenProfileModal}
+                  className="focus:outline-none"
+                >
+                  <img
+                    src={user.picture}
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/person.png";
+                    }}
+                    alt="Person"
+                    className="w-10 h-10 rounded-full shadow-lg border-2 border-primary object-cover transition-all"
+                  />
+                </button>
+              </>
             ) : (
               <div className="flex justify-center gap-4">
                 <Button
@@ -117,7 +134,13 @@ export default function Navigation({
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t border-gray-200">
             <div className="flex flex-col space-y-2">
-              {["home", "sessions", "recordings", "gallery",...(user?.isAuthenticated ? ["announcements"] : [])].map((id) => (
+              {[
+                "home",
+                "sessions",
+                "recordings",
+                "gallery",
+                ...(user?.isAuthenticated ? ["announcements"] : []),
+              ].map((id) => (
                 <button
                   key={id}
                   onClick={() => scrollToSection(id)}
@@ -126,18 +149,21 @@ export default function Navigation({
                   {id.charAt(0).toUpperCase() + id.slice(1)}
                 </button>
               ))}
-              {!user?.isAuthenticated &&(<button
-                onClick={() => {
-                  setShowForm(true);
-                  setIsMenuOpen(false);
-                }}
-                className="text-left px-4 py-2 text-gray-600 hover:text-primary transition-colors"
-              >
-                Contact
-              </button>)}
+              {!user?.isAuthenticated && (
+                <button
+                  onClick={() => {
+                    setShowForm(true);
+                    setIsMenuOpen(false);
+                  }}
+                  className="text-left px-4 py-2 text-gray-600 hover:text-primary transition-colors"
+                >
+                  Contact
+                </button>
+              )}
             </div>
           </div>
         )}
+
       </div>
     </nav>
   );

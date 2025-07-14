@@ -50,6 +50,9 @@ export default function GallerySection() {
                   <img
                     src={item.imageUrl}
                     alt={item.title}
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/placeholder.png"; // fallback image
+                    }}
                     className="w-full h-64 object-cover"
                   />
                 </div>

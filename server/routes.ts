@@ -8,6 +8,7 @@ import {
   SessionContent,
   GalleryItem,
   AuthUser,
+  AnnouncementSchema,
 } from "@shared/schema";
 import nodemailer from "nodemailer";
 import session from "express-session";
@@ -16,6 +17,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { drive } from "server/utils/googleDrive";
+import { auth } from "server/utils/googleDrive"; 
 
 dotenv.config();
 
@@ -34,6 +36,7 @@ const GOOGLE_GALLERY_FOLDER_ID = process.env.GOOGLE_GALLERY_FOLDER_ID || "";
 const GOOGLE_FORM_URL = process.env.GOOGLE_FORM_URL || "";
 const GOOGLE_SHEET = process.env.GOOGLE_ANNOUNCEMENT_SHEET || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || "supersecret";
+const DONATION_SHEET_ID=process.env.GOOGLE_DONATIONS_SHEET_ID;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -129,6 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       const isMember = existingEmails.includes(userEmail);
+      const isAdmin = userEmail === ADMIN_EMAIL;
 
       if (!isMember) {
         console.warn(`❌ Unauthorized login attempt by: ${userEmail}`);
@@ -140,6 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         name: userInfo.name!,
         picture: userInfo.picture!,
         isAuthenticated: true,
+        role: isAdmin ? "admin" : "user" 
       };
 
       (req.session as any).user = user;
@@ -407,12 +412,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         skip_empty_lines: true,
       });
 
-
-
       // Optional: normalize/clean
       const announcements = records.map((row: any) => {
         const fileId = extractDriveFileId(row.Invitation);
-        
+
         return {
           id: `${row.Title}-${row.Time}`,
           title: row.Title || "Untitled",
@@ -422,7 +425,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           venue: row.Venue || "TBD",
           organiser: row.Organiser || "TBD",
           event: row.Event || "TBD",
-         file: fileId ? `https://drive.google.com/file/d/${fileId}/preview` : "",
+          file: fileId
+            ? `https://drive.google.com/file/d/${fileId}/preview`
+            : "",
         };
       });
 
@@ -443,6 +448,228 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     res.redirect(redirectUrl);
   });
+
+  app.post("/api/send-announcement", async (req: Request, res: Response) => {
+    try {
+      const validation = AnnouncementSchema.safeParse(req.body);
+      if (!validation.success) {
+        return res.status(400).json({
+          message: "Invalid message data",
+          errors: validation.error.errors,
+        });
+      }
+
+      const a = validation.data;
+
+      const mailOptions = {
+        from: ADMIN_EMAIL,
+        to: ADMIN_EMAIL,
+        cc: MEMBER_EMAIL,
+        subject: `New Announcement: ${a.title}`,
+        html: `
+        <h2>${a.title}</h2>
+        <p><strong>Event:</strong> ${a.event}</p>
+        <p><strong>Date:</strong> ${a.date}</p>
+        <p><strong>Time:</strong> ${a.fromtime} - ${a.totime}</p>
+        <p><strong>Venue:</strong> ${a.venue}</p>
+        <p><strong>Organiser:</strong> ${a.organiser}</p>
+        ${
+          a.file
+            ? `<p><a href="${a.file}" target="_blank">View Attachment</a></p>`
+            : ""
+        }
+        <p><em>This announcement was sent via Pillars of Truth community portal.</em></p>
+      `,
+      };
+
+      await transporter.sendMail(mailOptions);
+
+      res.json({ success: true, message: "Message sent successfully" });
+    } catch (error) {
+      console.error("Chat message error:", error);
+      res.status(500).json({ message: "Failed to send message" });
+    }
+  });
+
+
+  //Send Donation Confirmation Message
+app.post("/api/donations", async (req: Request, res: Response) => {
+  try {
+    const { uniqueId, name, email, phone, amount, purpose, confirmed } = req.body;
+
+    if (!name || !email || !amount || !purpose) {
+      return res.status(400).json({ message: "Missing required fields" });
+    }
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const timestamp = new Date().toLocaleString();
+
+    const row = [
+      uniqueId,
+      name,
+      email,
+      phone || "",
+      amount,
+      purpose,
+      timestamp,
+      confirmed === true ? "true" : "false",
+    ];
+
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: DONATION_SHEET_ID!,
+      range: "Sheet1",
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [row],
+      },
+    });
+
+    // ✅ Send notification email
+    const mailOptions = {
+      from: ADMIN_EMAIL,
+      to: ADMIN_EMAIL,
+      subject: `New Donation Received - ${name}`,
+      html: `
+        <h2>New Donation Recorded</h2>
+        <p><strong>Donor Name:</strong> ${name}</p>
+        <p><strong>Email:</strong> ${email}</p>
+        <p><strong>Phone:</strong> ${phone || "N/A"}</p>
+        <p><strong>Amount:</strong> ₹${amount}</p>
+        <p><strong>Purpose:</strong> ${purpose}</p>
+        <p><strong>Timestamp:</strong> ${timestamp}</p>
+        <p><strong>Confirmed:</strong> ${confirmed === true ? "Yes" : "No"}</p>
+        <p><strong>Unique ID:</strong> ${uniqueId}</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.status(200).json({ success: true, message: "Donation recorded", id: uniqueId });
+  } catch (err) {
+    console.error("Failed to append to sheet:", err);
+    res.status(500).json({ message: "Failed to record donation" });
+  }
+});
+
+//Get all Donations
+app.get("/api/donations/list", async (req: Request, res: Response) => {
+  try {
+    const sheets = google.sheets({ version: "v4", auth });
+
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: DONATION_SHEET_ID,
+      range: "Sheet1",
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) {
+      return res.json([]);
+    }
+
+    const headers = rows[0];
+    const donations = rows.slice(1).map((row) => {
+      const entry: any = {};
+      headers.forEach((header, index) => {
+        entry[header] = row[index] || "";
+      });
+      return entry;
+    });
+
+    res.json(donations);
+  } catch (err) {
+    console.error("Failed to fetch donation list:", err);
+    res.status(500).json({ message: "Failed to fetch donations" });
+  }
+});
+
+//Update Donation Confirmation Status
+app.post("/api/donations/confirm", async (req: Request, res: Response) => {
+  try {
+    const { uniqueId } = req.body;
+    if (!uniqueId) {
+      return res.status(400).json({ message: "Missing uniqueId" });
+    }
+
+    const sheets = google.sheets({ version: "v4", auth });
+
+    // Fetch all rows from the sheet
+    const response = await sheets.spreadsheets.values.get({
+      spreadsheetId: DONATION_SHEET_ID,
+      range: "Sheet1",
+    });
+
+    const rows = response.data.values;
+    if (!rows || rows.length < 2) {
+      return res.status(500).json({ message: "No donation data available" });
+    }
+
+    const headers = rows[0].map(h => h.trim());
+    const idIndex = headers.indexOf("UniqueId");
+    const confirmedIndex = headers.indexOf("Confirmed");
+
+    if (idIndex === -1 || confirmedIndex === -1) {
+      return res.status(500).json({ message: "Sheet missing required columns" });
+    }
+
+    const targetRowIndex = rows.findIndex((row, idx) => idx !== 0 && row[idIndex] === uniqueId);
+    if (targetRowIndex === -1) {
+      return res.status(404).json({ message: "Donation not found" });
+    }
+
+    // Update the 'Confirmed' column to 'true'
+    const updateRange = `Sheet1!${String.fromCharCode(65 + confirmedIndex)}${targetRowIndex + 1}`;
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: DONATION_SHEET_ID,
+      range: updateRange,
+      valueInputOption: "USER_ENTERED",
+      requestBody: {
+        values: [["true"]],
+      },
+    });
+
+    // Construct the donor's data from the row
+    const row = rows[targetRowIndex];
+    const data = Object.fromEntries(
+      headers.map((h, i) => [h, row[i]?.toString().trim() || ""])
+    );
+
+    // Safety check: ensure email is defined
+    if (!data.Email) {
+      return res.status(400).json({ message: "Missing email for donor" });
+    }
+
+    // Send confirmation email to the donor
+    const mailOptions = {
+      from: ADMIN_EMAIL,
+      to: data.Email,
+      subject: "Donation Successfully Received - Pillars of Truth",
+      html: `
+        <h2>Thank You for Your Donation!</h2>
+        <p>Dear <strong>${data.Name}</strong>,</p>
+        <p>We have successfully received your donation.</p>
+        <p><strong>Details:</strong></p>
+        <ul>
+          <li><strong>Amount:</strong> ₹${data.Amount}</li>
+          <li><strong>Purpose:</strong> ${data.Purpose}</li>
+          <li><strong>Date:</strong> ${data.TimeStamp}</li>
+          <li><strong>Reference ID:</strong> ${data.UniqueId}</li>
+        </ul>
+        <p>We truly appreciate your support and generosity.</p>
+        <p>Warm regards,<br/>Pillars of Truth Team</p>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res.json({ success: true, message: "Donation confirmed and email sent." });
+  } catch (err) {
+    console.error("Failed to update donation:", err);
+    res.status(500).json({ message: "Failed to update donation" });
+  }
+});
+
+
 
   const httpServer = createServer(app);
   return httpServer;
