@@ -51,6 +51,16 @@ export default function Payment() {
           Thank you for your support!
         </p>
 
+        <div className="text-center">
+          {/* Receiver Details */}
+          <p className="text-lg font-semibold">Mr Harsha Mulaparthi</p>
+          <p className="text-sm text-gray-600">****620@slc</p>
+
+          <p className="text-xs text-gray-500 mt-2">
+            Please verify the receiver details before making payment.
+          </p>
+          <br></br>
+        </div>
         <QRCodeSVG
           value={upiLink}
           size={180}
@@ -103,15 +113,15 @@ export default function Payment() {
             >
               {loading ? "Confirming..." : "Confirm"}
             </button>
-
-            <button
-              onClick={() => navigate("/")}
-              className="w-full border border-gray-400 text-gray-700 py-2 rounded hover:bg-gray-100 transition"
-            >
-              Return to Home
-            </button>
           </div>
         )}
+
+        <button
+          onClick={() => navigate("/")}
+          className="w-full border border-gray-400 text-gray-700 py-2 rounded hover:bg-gray-100 transition mt-2"
+        >
+          Return to Home
+        </button>
       </div>
     </div>
   );

@@ -5,9 +5,9 @@ export const contactFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Valid email is required"),
-  phone: z.string().optional(),
-  ageGroup: z.enum(["13-17", "18-22", "23-30"]),
-  hearAbout: z.enum(["friend", "church", "social", "other"]).optional(),
+  phone: z.string().min(1, "Phone number is required"),
+  ageGroup: z.string().min(1, "Please select an age group"),
+  hearAbout: z.string().min(1, "Please select how you heard about us"),
   message: z.string().min(10, "Please tell us more about yourself"),
   agreeCommunications: z.boolean().refine(val => val === true, "You must agree to receive communications")
 });

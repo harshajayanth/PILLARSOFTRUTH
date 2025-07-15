@@ -16,8 +16,8 @@ const people = [
     id: "1",
     name: "Bobby Albert M",
     role: "Preacher",
-    image: "/images/bobby.jpg",
-    email: "sarah.lee@example.com",
+    image: "/images/bobby.jpeg",
+    email: "burmacoc@gmail.com",
     bio: "Church Of Christ, Kakinada",
   },
   {
@@ -30,7 +30,7 @@ const people = [
   },
   {
     id: "3",
-    name: "S.Raja",
+    name: "Raja S",
     role: "Youth Minister",
     image: "/images/raja.png",
     email: "sunny.coc94@gmail.com",
@@ -69,7 +69,7 @@ export default function Parent() {
         </h2>
 
         <motion.div
-          className="flex space-x-6 overflow-x-auto pb-4"
+          className="flex space-x-6 flex-wrap justify-center overflow-x-auto pb-4 no-scrollbar"
           variants={containerVariants}
           initial="hidden"
           animate="show"

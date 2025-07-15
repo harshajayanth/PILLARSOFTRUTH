@@ -10,7 +10,7 @@ export default function Navigation({
 }: {
   onOpenCommunityForm: () => void;
   onOpenProfileModal: () => void;
-  onOpenDonateModal:() => void;
+  onOpenDonateModal: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, login } = useAuth();
@@ -71,10 +71,13 @@ export default function Navigation({
               <>
                 <Button
                   onClick={onOpenDonateModal}
-                  className="bg-green-800 text-white border border-green-600 hover:bg-green-700 transition"
+                  className="bg-green-800 text-white rounded-full px-6 py-2 
+             hover:bg-green-700 transition 
+             ring-2 ring-green-600 ring-offset-2"
                 >
                   Donate
                 </Button>
+
                 <button
                   onClick={onOpenProfileModal}
                   className="focus:outline-none"
@@ -85,7 +88,7 @@ export default function Navigation({
                       e.currentTarget.src = "/images/person.png";
                     }}
                     alt="Person"
-                    className="w-10 h-10 rounded-full shadow-lg border-2 border-primary object-cover transition-all"
+                    className="w-12 h-12 rounded-full shadow-lg border-2 border-primary object-cover transition-all"
                   />
                 </button>
               </>
@@ -163,7 +166,6 @@ export default function Navigation({
             </div>
           </div>
         )}
-
       </div>
     </nav>
   );

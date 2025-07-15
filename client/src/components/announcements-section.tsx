@@ -70,7 +70,7 @@ export default function AnnouncementSection() {
         {loading ? (
           <p className="text-center text-gray-600">Loading announcements...</p>
         ) : (
-          <div className="flex gap-4 overflow-x-auto pb-4">
+          <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
             {/* Create Announcement Card */}
             <a
               href="/api/create-announcement"
@@ -105,7 +105,7 @@ export default function AnnouncementSection() {
                       <div className="flex items-center text-gray-500 bg-gray-100 px-2 py-1 rounded text-sm gap-1">
                         Sending...
                       </div>
-                    ) : (
+                    ) : (user.role==="admin"&&
                       <button
                         className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm border border-blue-200 rounded px-2 py-1"
                         onClick={() => sendAnnouncement(a)}

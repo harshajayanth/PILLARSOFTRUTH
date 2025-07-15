@@ -17,7 +17,8 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { drive } from "server/utils/googleDrive";
-import { auth } from "server/utils/googleDrive"; 
+import { auth } from "server/utils/googleDrive";
+import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
 
@@ -36,7 +37,8 @@ const GOOGLE_GALLERY_FOLDER_ID = process.env.GOOGLE_GALLERY_FOLDER_ID || "";
 const GOOGLE_FORM_URL = process.env.GOOGLE_FORM_URL || "";
 const GOOGLE_SHEET = process.env.GOOGLE_ANNOUNCEMENT_SHEET || "";
 const SESSION_SECRET = process.env.SESSION_SECRET || "supersecret";
-const DONATION_SHEET_ID=process.env.GOOGLE_DONATIONS_SHEET_ID;
+const DONATION_SHEET_ID = process.env.GOOGLE_DONATIONS_SHEET_ID;
+const GOOGLE_USERS = process.env.GOOGLE_USERS_SHEET_ID;
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -115,36 +117,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
       const { data: userInfo } = await oauth2.userinfo.get();
 
+      const sheets = google.sheets({ version: "v4", auth });
+
       const userEmail = userInfo.email?.toLowerCase();
       if (!userEmail) {
         return res.redirect("/?auth=error&reason=missing_email");
       }
 
-      // 🔍 Check if email exists in members_email.json
-      let existingEmails: string[] = [];
-      try {
-        const raw = fs.readFileSync(MEMBERS_FILE_PATH, "utf-8");
-        existingEmails = JSON.parse(raw).map((email: string) =>
-          email.toLowerCase()
-        );
-      } catch (err) {
-        console.warn("⚠️ Members file not found or unreadable.");
+      const sheetData = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_USERS,
+        range: `Sheet1!A2:I`,
+      });
+
+      const rows = sheetData.data.values || [];
+      const matchedUser = rows.find(
+        (row) => row[2]?.toLowerCase() === userEmail
+      );
+
+      if (!matchedUser) {
+        console.warn(`❌ User not found: ${userEmail}`);
+        return res.redirect("/?auth=denied");
       }
 
-      const isMember = existingEmails.includes(userEmail);
-      const isAdmin = userEmail === ADMIN_EMAIL;
+      const roleFromSheet = (matchedUser[3] || "user").toLowerCase();
+      const access = (matchedUser[8] || "").toLowerCase();
 
-      if (!isMember) {
-        console.warn(`❌ Unauthorized login attempt by: ${userEmail}`);
-        return res.redirect("/?auth=unauthorized"); // You can show a toast on frontend
+      if (access !== "active") {
+        console.warn(`⏳ Access not approved for: ${userEmail}`);
+        return res.redirect("/?auth=pending");
       }
+
+      const finalRole = roleFromSheet === "admin" ? "admin" : "user";
 
       const user: AuthUser = {
         email: userInfo.email!,
         name: userInfo.name!,
         picture: userInfo.picture!,
         isAuthenticated: true,
-        role: isAdmin ? "admin" : "user" 
+        role: finalRole,
       };
 
       (req.session as any).user = user;
@@ -246,9 +256,144 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  //  Get all users
+  app.get("/api/users", async (req, res) => {
+    try {
+      const sheets = google.sheets({ version: "v4", auth });
+      const result = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_USERS,
+        range: `Sheet1!A1:I`, // adjust columns
+      });
+
+      const rows = result.data.values || [];
+      if (rows.length === 0) return res.json([]);
+
+      const headers = rows[0];
+      const users = rows
+        .slice(1)
+        .map((row) =>
+          Object.fromEntries(headers.map((key, i) => [key, row[i] || ""]))
+        );
+
+      res.json(users);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: err });
+    }
+  });
+
+  //Update User
+  app.put("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { username, email, role, phone, age, source, bio, access } =
+        req.body;
+
+      const sheets = google.sheets({ version: "v4", auth });
+
+      // ✅ Fetch all rows to find correct row
+      const result = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_USERS,
+        range: `Sheet1!A1:I`, // A→I covers 9 columns
+      });
+
+      const rows = result.data.values || [];
+      const headers = rows[0];
+      const idIndex = headers.indexOf("id");
+
+      if (idIndex === -1) {
+        return res.status(500).json({ error: "No 'id' column found" });
+      }
+
+      const rowIndex = rows.findIndex((r) => r[idIndex] === id);
+      if (rowIndex === -1) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // ✅ Build updated row
+      const updatedRow = [
+        id,
+        username,
+        email,
+        role,
+        phone,
+        age,
+        source,
+        bio,
+        access,
+      ];
+
+      // ✅ Update the correct row
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: GOOGLE_USERS,
+        range: `Sheet1!A${rowIndex + 1}:I${rowIndex + 1}`,
+        valueInputOption: "RAW",
+        requestBody: { values: [updatedRow] },
+      });
+
+      res.json({ message: `User with id ${id} updated successfully` });
+    } catch (err) {
+      console.error("Error updating user:", err);
+      res.status(500).json({ error: err });
+    }
+  });
+
+  //Delete User
+  app.delete("/api/users/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+
+      const sheets = google.sheets({ version: "v4", auth });
+
+      // ✅ Fetch all rows
+      const result = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_USERS,
+        range: `Sheet1!A1:I`,
+      });
+
+      const rows = result.data.values || [];
+      const headers = rows[0];
+      const idIndex = headers.indexOf("id");
+
+      if (idIndex === -1) {
+        return res.status(500).json({ error: "No 'id' column found" });
+      }
+
+      const rowIndex = rows.findIndex((r) => r[idIndex] === id);
+      if (rowIndex === -1) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // ✅ Delete row (Google Sheets uses batchUpdate)
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: GOOGLE_USERS,
+        requestBody: {
+          requests: [
+            {
+              deleteDimension: {
+                range: {
+                  sheetId: 0, // first sheet (adjust if needed)
+                  dimension: "ROWS",
+                  startIndex: rowIndex, // 0-based index
+                  endIndex: rowIndex + 1,
+                },
+              },
+            },
+          ],
+        },
+      });
+
+      res.json({ message: `User with id ${id} deleted successfully` });
+    } catch (err) {
+      console.error("Error deleting user:", err);
+      res.status(500).json({ error: err });
+    }
+  });
+
   // --- CONTACT FORM ---
   app.post("/api/contact", async (req: Request, res: Response) => {
     try {
+      // ✅ Validate incoming form
       const validation = contactFormSchema.safeParse(req.body);
       if (!validation.success) {
         return res.status(400).json({
@@ -256,64 +401,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors: validation.error.errors,
         });
       }
-
       const formData = validation.data;
 
-      let existingEmails: string[] = [];
-      try {
-        const raw = fs.readFileSync(MEMBERS_FILE_PATH, "utf-8");
-        existingEmails = JSON.parse(raw);
-      } catch (err) {
-        console.warn("Members file not found, creating new.");
-      }
+      const sheets = google.sheets({ version: "v4", auth });
 
-      if (!existingEmails.includes(formData.email)) {
-        existingEmails.push(formData.email);
-        fs.writeFileSync(
-          MEMBERS_FILE_PATH,
-          JSON.stringify(existingEmails, null, 2)
-        );
-      }
+      // ✅ Fetch existing rows from Google Sheet
+      const existingData = await sheets.spreadsheets.values.get({
+        spreadsheetId: GOOGLE_USERS,
+        range: `Sheet1!A2:C`, // Assuming A has id, B username, C email
+      });
 
+      const rows = existingData.data.values || [];
+      console.log(rows);
+      const existingEmails = rows
+        .map((row: any) => row[2]) // column C = email
+        .filter((email: string | undefined) => email && email !== "email")
+        .map((email: string) => email.toLowerCase());
+
+      const incomingEmail = formData.email.toLowerCase();
+
+      if (existingEmails.includes(incomingEmail)) {
+        return res.status(409).json({
+          message: "Email already registered",
+        });
+      }
+      // ✅ Generate new user entry
+      const newId = uuidv4();
+      const newUser = [
+        newId, // id
+        `${formData.firstName} ${formData.lastName}`, // username
+        formData.email,
+        "user", // default role
+        formData.phone || "",
+        formData.ageGroup || "",
+        formData.hearAbout || "",
+        formData.message || "", // bio/message
+        "inactive", // access
+      ];
+
+      // ✅ Append new user to Google Sheet
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: GOOGLE_USERS,
+        range: "Sheet1",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [newUser],
+        },
+      });
+
+      // ✅ Send admin notification email
       const mailOptions = {
         from: ADMIN_EMAIL,
         to: ADMIN_EMAIL,
         subject: "New Community Member Application",
         html: `
-          <h2>New Community Member Application</h2>
-          <p><strong>Name:</strong> ${formData.firstName} ${
-          formData.lastName
+        <h2>New Community Member Application</h2>
+        <p><strong>Name:</strong> ${formData.firstName} ${formData.lastName}</p>
+        <p><strong>Email:</strong> ${formData.email}</p>
+        <p><strong>Phone:</strong> ${formData.phone || "Not provided"}</p>
+        <p><strong>Age Group:</strong> ${formData.ageGroup}</p>
+        <p><strong>Heard about us:</strong> ${
+          formData.hearAbout || "Not specified"
         }</p>
-          <p><strong>Email:</strong> ${formData.email}</p>
-          <p><strong>Phone:</strong> ${formData.phone || "Not provided"}</p>
-          <p><strong>Age Group:</strong> ${formData.ageGroup}</p>
-          <p><strong>Heard about us:</strong> ${
-            formData.hearAbout || "Not specified"
-          }</p>
-          <p><strong>Message:</strong></p>
-          <p>${formData.message}</p>
-          <p><strong>Agreed to communications:</strong> ${
-            formData.agreeCommunications ? "Yes" : "No"
-          }</p>
-        `,
+        <p><strong>Message:</strong> ${formData.message}</p>
+      `,
       };
-
       await transporter.sendMail(mailOptions);
 
+      // ✅ Send confirmation email to user
       const confirmationOptions = {
         from: ADMIN_EMAIL,
         to: formData.email,
         subject: "Welcome to Pillars of Truth Community!",
         html: `
-          <h2>Thank you for your interest!</h2>
-          <p>Dear ${formData.firstName},</p>
-          <p>Thank you for applying to join our Pillars of Truth youth community. We have received your application and will review it shortly.</p>
-          <p>One of our team members will contact you within the next few days to discuss the next steps.</p>
-          <p>May God bless you as you seek to grow in His word!</p>
-          <p>In Christ,<br>Pillars of Truth Team</p>
-        `,
+        <h2>Thank you for your interest!</h2>
+        <p>Dear ${formData.firstName},</p>
+        <p>Thank you for applying to join our Pillars of Truth youth community. We have received your application and will review it shortly.</p>
+        <p>One of our team members will contact you within the next few days to discuss the next steps.</p>
+        <p>May God bless you as you seek to grow in His word!</p>
+        <p>In Christ,<br>Pillars of Truth Team</p>
+      `,
       };
-
       await transporter.sendMail(confirmationOptions);
 
       res.json({
@@ -491,46 +659,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-
   //Send Donation Confirmation Message
-app.post("/api/donations", async (req: Request, res: Response) => {
-  try {
-    const { uniqueId, name, email, phone, amount, purpose, confirmed } = req.body;
+  app.post("/api/donations", async (req: Request, res: Response) => {
+    try {
+      const { uniqueId, name, email, phone, amount, purpose, confirmed } =
+        req.body;
 
-    if (!name || !email || !amount || !purpose) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
+      if (!name || !email || !amount || !purpose) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
 
-    const sheets = google.sheets({ version: "v4", auth });
+      const sheets = google.sheets({ version: "v4", auth });
 
-    const timestamp = new Date().toLocaleString();
+      const timestamp = new Date().toLocaleString();
 
-    const row = [
-      uniqueId,
-      name,
-      email,
-      phone || "",
-      amount,
-      purpose,
-      timestamp,
-      confirmed === true ? "true" : "false",
-    ];
+      const row = [
+        uniqueId,
+        name,
+        email,
+        phone || "",
+        amount,
+        purpose,
+        timestamp,
+        confirmed === true ? "true" : "false",
+      ];
 
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: DONATION_SHEET_ID!,
-      range: "Sheet1",
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [row],
-      },
-    });
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: DONATION_SHEET_ID!,
+        range: "Sheet1",
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [row],
+        },
+      });
 
-    // ✅ Send notification email
-    const mailOptions = {
-      from: ADMIN_EMAIL,
-      to: ADMIN_EMAIL,
-      subject: `New Donation Received - ${name}`,
-      html: `
+      // ✅ Send notification email
+      const mailOptions = {
+        from: ADMIN_EMAIL,
+        to: ADMIN_EMAIL,
+        subject: `New Donation Received - ${name}`,
+        html: `
         <h2>New Donation Recorded</h2>
         <p><strong>Donor Name:</strong> ${name}</p>
         <p><strong>Email:</strong> ${email}</p>
@@ -541,110 +709,118 @@ app.post("/api/donations", async (req: Request, res: Response) => {
         <p><strong>Confirmed:</strong> ${confirmed === true ? "Yes" : "No"}</p>
         <p><strong>Unique ID:</strong> ${uniqueId}</p>
       `,
-    };
+      };
 
-    await transporter.sendMail(mailOptions);
+      await transporter.sendMail(mailOptions);
 
-    res.status(200).json({ success: true, message: "Donation recorded", id: uniqueId });
-  } catch (err) {
-    console.error("Failed to append to sheet:", err);
-    res.status(500).json({ message: "Failed to record donation" });
-  }
-});
-
-//Get all Donations
-app.get("/api/donations/list", async (req: Request, res: Response) => {
-  try {
-    const sheets = google.sheets({ version: "v4", auth });
-
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: DONATION_SHEET_ID,
-      range: "Sheet1",
-    });
-
-    const rows = response.data.values;
-    if (!rows || rows.length < 2) {
-      return res.json([]);
+      res
+        .status(200)
+        .json({ success: true, message: "Donation recorded", id: uniqueId });
+    } catch (err) {
+      console.error("Failed to append to sheet:", err);
+      res.status(500).json({ message: "Failed to record donation" });
     }
+  });
 
-    const headers = rows[0];
-    const donations = rows.slice(1).map((row) => {
-      const entry: any = {};
-      headers.forEach((header, index) => {
-        entry[header] = row[index] || "";
+  //Get all Donations
+  app.get("/api/donations/list", async (req: Request, res: Response) => {
+    try {
+      const sheets = google.sheets({ version: "v4", auth });
+
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: DONATION_SHEET_ID,
+        range: "Sheet1",
       });
-      return entry;
-    });
 
-    res.json(donations);
-  } catch (err) {
-    console.error("Failed to fetch donation list:", err);
-    res.status(500).json({ message: "Failed to fetch donations" });
-  }
-});
+      const rows = response.data.values;
+      if (!rows || rows.length < 2) {
+        return res.json([]);
+      }
 
-//Update Donation Confirmation Status
-app.post("/api/donations/confirm", async (req: Request, res: Response) => {
-  try {
-    const { uniqueId } = req.body;
-    if (!uniqueId) {
-      return res.status(400).json({ message: "Missing uniqueId" });
+      const headers = rows[0];
+      const donations = rows.slice(1).map((row) => {
+        const entry: any = {};
+        headers.forEach((header, index) => {
+          entry[header] = row[index] || "";
+        });
+        return entry;
+      });
+
+      res.json(donations);
+    } catch (err) {
+      console.error("Failed to fetch donation list:", err);
+      res.status(500).json({ message: "Failed to fetch donations" });
     }
+  });
 
-    const sheets = google.sheets({ version: "v4", auth });
+  //Update Donation Confirmation Status
+  app.post("/api/donations/confirm", async (req: Request, res: Response) => {
+    try {
+      const { uniqueId } = req.body;
+      if (!uniqueId) {
+        return res.status(400).json({ message: "Missing uniqueId" });
+      }
 
-    // Fetch all rows from the sheet
-    const response = await sheets.spreadsheets.values.get({
-      spreadsheetId: DONATION_SHEET_ID,
-      range: "Sheet1",
-    });
+      const sheets = google.sheets({ version: "v4", auth });
 
-    const rows = response.data.values;
-    if (!rows || rows.length < 2) {
-      return res.status(500).json({ message: "No donation data available" });
-    }
+      // Fetch all rows from the sheet
+      const response = await sheets.spreadsheets.values.get({
+        spreadsheetId: DONATION_SHEET_ID,
+        range: "Sheet1",
+      });
 
-    const headers = rows[0].map(h => h.trim());
-    const idIndex = headers.indexOf("UniqueId");
-    const confirmedIndex = headers.indexOf("Confirmed");
+      const rows = response.data.values;
+      if (!rows || rows.length < 2) {
+        return res.status(500).json({ message: "No donation data available" });
+      }
 
-    if (idIndex === -1 || confirmedIndex === -1) {
-      return res.status(500).json({ message: "Sheet missing required columns" });
-    }
+      const headers = rows[0].map((h) => h.trim());
+      const idIndex = headers.indexOf("UniqueId");
+      const confirmedIndex = headers.indexOf("Confirmed");
 
-    const targetRowIndex = rows.findIndex((row, idx) => idx !== 0 && row[idIndex] === uniqueId);
-    if (targetRowIndex === -1) {
-      return res.status(404).json({ message: "Donation not found" });
-    }
+      if (idIndex === -1 || confirmedIndex === -1) {
+        return res
+          .status(500)
+          .json({ message: "Sheet missing required columns" });
+      }
 
-    // Update the 'Confirmed' column to 'true'
-    const updateRange = `Sheet1!${String.fromCharCode(65 + confirmedIndex)}${targetRowIndex + 1}`;
-    await sheets.spreadsheets.values.update({
-      spreadsheetId: DONATION_SHEET_ID,
-      range: updateRange,
-      valueInputOption: "USER_ENTERED",
-      requestBody: {
-        values: [["true"]],
-      },
-    });
+      const targetRowIndex = rows.findIndex(
+        (row, idx) => idx !== 0 && row[idIndex] === uniqueId
+      );
+      if (targetRowIndex === -1) {
+        return res.status(404).json({ message: "Donation not found" });
+      }
 
-    // Construct the donor's data from the row
-    const row = rows[targetRowIndex];
-    const data = Object.fromEntries(
-      headers.map((h, i) => [h, row[i]?.toString().trim() || ""])
-    );
+      // Update the 'Confirmed' column to 'true'
+      const updateRange = `Sheet1!${String.fromCharCode(65 + confirmedIndex)}${
+        targetRowIndex + 1
+      }`;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: DONATION_SHEET_ID,
+        range: updateRange,
+        valueInputOption: "USER_ENTERED",
+        requestBody: {
+          values: [["true"]],
+        },
+      });
 
-    // Safety check: ensure email is defined
-    if (!data.Email) {
-      return res.status(400).json({ message: "Missing email for donor" });
-    }
+      // Construct the donor's data from the row
+      const row = rows[targetRowIndex];
+      const data = Object.fromEntries(
+        headers.map((h, i) => [h, row[i]?.toString().trim() || ""])
+      );
 
-    // Send confirmation email to the donor
-    const mailOptions = {
-      from: ADMIN_EMAIL,
-      to: data.Email,
-      subject: "Donation Successfully Received - Pillars of Truth",
-      html: `
+      // Safety check: ensure email is defined
+      if (!data.Email) {
+        return res.status(400).json({ message: "Missing email for donor" });
+      }
+
+      // Send confirmation email to the donor
+      const mailOptions = {
+        from: ADMIN_EMAIL,
+        to: data.Email,
+        subject: "Donation Successfully Received - Pillars of Truth",
+        html: `
         <h2>Thank You for Your Donation!</h2>
         <p>Dear <strong>${data.Name}</strong>,</p>
         <p>We have successfully received your donation.</p>
@@ -658,18 +834,19 @@ app.post("/api/donations/confirm", async (req: Request, res: Response) => {
         <p>We truly appreciate your support and generosity.</p>
         <p>Warm regards,<br/>Pillars of Truth Team</p>
       `,
-    };
+      };
 
-    await transporter.sendMail(mailOptions);
+      await transporter.sendMail(mailOptions);
 
-    res.json({ success: true, message: "Donation confirmed and email sent." });
-  } catch (err) {
-    console.error("Failed to update donation:", err);
-    res.status(500).json({ message: "Failed to update donation" });
-  }
-});
-
-
+      res.json({
+        success: true,
+        message: "Donation confirmed and email sent.",
+      });
+    } catch (err) {
+      console.error("Failed to update donation:", err);
+      res.status(500).json({ message: "Failed to update donation" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

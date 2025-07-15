@@ -2,6 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Hide scrollbar for Chrome, Safari, Edge */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for Firefox */
+.no-scrollbar {
+  scrollbar-width: none; 
+  -ms-overflow-style: none; /* IE 10+ */
+}
+
+
 :root {
   --background: hsl(0, 0%, 100%);
   --foreground: hsl(224, 71.4%, 4.1%);

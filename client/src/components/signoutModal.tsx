@@ -51,7 +51,7 @@ export default function SignOutModal({ onClose }: Props) {
               onClick={() => handleAdminNav("/admin/donations")}
               className="w-full bg-yellow-600 hover:bg-yellow-700 text-white"
             >
-              Donations
+             Manage Donations
             </Button>
           </div>
         )}

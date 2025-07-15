@@ -41,16 +41,32 @@ export default function Home() {
     navigate("/payment", { state: formData });
   };
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("auth") === "unauthorized") {
-      toast({
-        title: "Access Denied",
-        description: "You are not registered. Please join the community first.",
-        variant: "destructive",
-      });
-    }
-  }, []);
+useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
+  const auth = params.get("auth");
+  const reason = params.get("reason") || "";
+
+  if (auth === "denied") {
+    toast({
+      title: "Access Denied",
+      description: reason || "You are not registered. Please join the community first.",
+      variant: "destructive",
+    });
+  } else if (auth === "pending") {
+    toast({
+      title: "Access Pending",
+      description: reason || "Your access is not approved yet. Contact your Administrator.",
+      variant: "destructive",
+    });
+  } else if (auth === "error") {
+    toast({
+      title: "Authentication Error",
+      description: reason || "Something went wrong during login. Please try again.",
+      variant: "destructive",
+    });
+  } 
+}, []);
+
 
   return (
     <div className="min-h-screen bg-gray-50">
