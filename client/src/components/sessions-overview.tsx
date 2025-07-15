@@ -5,7 +5,7 @@ import { Sprout, Flame, Crown } from "lucide-react";
 const sessions = [
   {
     id: 1,
-    title: "Session 1: Foundation",
+    title: "Foundation",
     description: "Building strong foundations in faith and understanding",
     icon: Sprout,
     chapters: 12,
@@ -17,7 +17,7 @@ const sessions = [
   },
   {
     id: 2,
-    title: "Session 2: Growth",
+    title: "Growth",
     description: "Deepening spiritual maturity and leadership",
     icon: Flame,
     chapters: 15,
@@ -29,7 +29,7 @@ const sessions = [
   },
   {
     id: 3,
-    title: "Session 3: Ministry",
+    title: "Ministry",
     description: "Preparing for active ministry and service",
     icon: Crown,
     chapters: 18,

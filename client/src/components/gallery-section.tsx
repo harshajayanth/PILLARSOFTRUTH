@@ -17,8 +17,6 @@ export default function GallerySection() {
     },
   });
 
-  console.log(galleryItems)
-
   return (
     <section id="gallery" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -39,7 +37,7 @@ export default function GallerySection() {
         ) : (
           <>
             <motion.div
-              className="flex gap-4 overflow-x-auto pb-4"
+              className="flex gap-4 overflow-x-auto pb-4 no-scrollbar"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
@@ -52,6 +50,9 @@ export default function GallerySection() {
                   <img
                     src={item.imageUrl}
                     alt={item.title}
+                    onError={(e) => {
+                      e.currentTarget.src = "/images/placeholder.png"; // fallback image
+                    }}
                     className="w-full h-64 object-cover"
                   />
                 </div>

@@ -13,12 +13,27 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
 import { contactFormSchema, ContactForm } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 
-export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isOpen: boolean; onClose: () => void; presetEmail?: string }) {
+export default function ContactFormModal({
+  isOpen,
+  onClose,
+  presetEmail,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  presetEmail?: string;
+}) {
   const { toast } = useToast();
 
   const form = useForm<ContactForm>({
@@ -65,7 +80,9 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
       <Card className="max-w-3xl w-full mx-4 overflow-y-auto max-h-[90vh]">
         <CardContent className="p-8">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Join Our Community</h2>
+            <h2 className="text-2xl font-bold text-gray-900">
+              Join Our Community
+            </h2>
             <Button variant="ghost" size="sm" onClick={onClose}>
               Close
             </Button>
@@ -79,7 +96,9 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>First Name</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -90,7 +109,9 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Last Name</FormLabel>
-                      <FormControl><Input {...field} /></FormControl>
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -103,7 +124,9 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Email Address</FormLabel>
-                    <FormControl><Input type="email" {...field} /></FormControl>
+                    <FormControl>
+                      <Input type="email" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -114,8 +137,10 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                 name="phone"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Phone Number (Optional)</FormLabel>
-                    <FormControl><Input type="tel" {...field} /></FormControl>
+                    <FormLabel>Phone Number</FormLabel>
+                    <FormControl>
+                      <Input type="tel" {...field} />
+                    </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -127,7 +152,10 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Age Group</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select age group" />
@@ -149,8 +177,11 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                 name="hearAbout"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>How did you hear about us? (Optional)</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>How did you hear about us?</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      defaultValue={field.value}
+                    >
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select option" />
@@ -158,7 +189,9 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                       </FormControl>
                       <SelectContent>
                         <SelectItem value="friend">Friend/Family</SelectItem>
-                        <SelectItem value="church">Church announcement</SelectItem>
+                        <SelectItem value="church">
+                          Church announcement
+                        </SelectItem>
                         <SelectItem value="social">Social media</SelectItem>
                         <SelectItem value="other">Other</SelectItem>
                       </SelectContent>
@@ -192,23 +225,32 @@ export default function ContactFormModal({ isOpen, onClose, presetEmail }: { isO
                 render={({ field }) => (
                   <FormItem className="flex items-start space-x-3">
                     <FormControl>
-                      <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
                     </FormControl>
                     <FormLabel className="text-sm text-gray-600">
-                      I agree to receive communications about community activities and sessions
+                      I agree to receive communications about community
+                      activities and sessions
                     </FormLabel>
                     <FormMessage />
                   </FormItem>
                 )}
               />
 
-              <Button
-                type="submit"
-                disabled={contactMutation.isPending}
-                className="w-full bg-primary text-white py-3 hover:bg-blue-700 transition-colors font-semibold"
-              >
-                {contactMutation.isPending ? "Submitting..." : "Submit Application"}
-              </Button>
+              {form.watch("agreeCommunications") && (
+                <Button
+                  type="submit"
+                  disabled={contactMutation.isPending}
+                  className="w-full bg-primary text-white py-3 hover:bg-blue-700 transition-colors font-semibold"
+                >
+                  {contactMutation.isPending
+                    ? "Submitting..."
+                    : "Submit Application"}
+                </Button>
+              )}
+
             </form>
           </Form>
         </CardContent>

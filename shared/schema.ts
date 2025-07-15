@@ -5,9 +5,9 @@ export const contactFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Valid email is required"),
-  phone: z.string().optional(),
-  ageGroup: z.enum(["13-17", "18-22", "23-30"]),
-  hearAbout: z.enum(["friend", "church", "social", "other"]).optional(),
+  phone: z.string().min(1, "Phone number is required"),
+  ageGroup: z.string().min(1, "Please select an age group"),
+  hearAbout: z.string().min(1, "Please select how you heard about us"),
   message: z.string().min(10, "Please tell us more about yourself"),
   agreeCommunications: z.boolean().refine(val => val === true, "You must agree to receive communications")
 });
@@ -19,11 +19,23 @@ export const chatMessageSchema = z.object({
   senderEmail: z.string().email().optional()
 });
 
+export const AnnouncementSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  date: z.string(),
+  fromtime: z.string(),
+  totime: z.string(),
+  file: z.string(),
+  venue: z.string(),
+  organiser:z.string(),
+  event:z.string()
+});
+
+
 // Session content schema
 export const sessionContentSchema = z.object({
   id: z.string(),
   title: z.string(),
-  session: z.number().min(1).max(3),
   type: z.enum(["recording", "chapter"]),
   description: z.string(),
   fileUrl: z.string().url(),
@@ -46,6 +58,7 @@ export const authUserSchema = z.object({
   email: z.string().email(),
   name: z.string(),
   picture: z.string(),
+  role:z.string(),
   isAuthenticated: z.boolean()
 });
 
@@ -55,6 +68,7 @@ export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type SessionContent = z.infer<typeof sessionContentSchema>;
 export type GalleryItem = z.infer<typeof galleryItemSchema>;
 export type AuthUser = z.infer<typeof authUserSchema>;
+export type Announcement = z.infer<typeof AnnouncementSchema>;
 
 // API Response schemas
 export const apiResponseSchema = z.object({
