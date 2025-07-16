@@ -78,30 +78,35 @@ export default function DonationsPage() {
 
   // ✅ Filter donations based on search term
   const filteredDonations = donations.filter((d) => {
-    const query = searchTerm.toLowerCase();
+  const query = searchTerm.trim().toLowerCase();
 
-    if (!query) return true; // show all if empty
+  if (!query) return true; // show all if empty
 
-    const name = d.Name?.toLowerCase() || "";
-    const email = d.Email?.toLowerCase() || "";
-    const amount = d.Amount?.toLowerCase() || "";
-    const purpose = d.Purpose?.toLowerCase() || "";
-    const time = d.TimeStamp?.toLowerCase() || "";
-    const status = d.Confirmed === "TRUE" ? "received" : "pending";
+  const name = (d.Name ?? "").toString().toLowerCase();
+  const email = (d.Email ?? "").toString().toLowerCase();
+  const amount = (d.Amount ?? "").toString().toLowerCase();
+  const purpose = (d.Purpose ?? "").toString().toLowerCase();
+  const time = (d.TimeStamp ?? "").toString().toLowerCase();
 
-    if (!isNaN(Number(query))) {
-      return amount === query;
-    }
+  const confirmedStatus =
+    d.Confirmed?.toString().toUpperCase() === "TRUE" ? "received" : "pending";
 
-    return (
-      name.includes(query) ||
-      email.includes(query) ||
-      amount.includes(query) ||
-      purpose.includes(query) ||
-      time.includes(query) ||
-      status.includes(query)
-    );
-  });
+  // If query is a number, allow exact match on amount
+  if (!isNaN(Number(query))) {
+    return amount === query;
+  }
+
+  // Otherwise match any field
+  return (
+    name.includes(query) ||
+    email.includes(query) ||
+    amount.includes(query) ||
+    purpose.includes(query) ||
+    time.includes(query) ||
+    confirmedStatus.includes(query)
+  );
+});
+
 
   if (loading || !user) {
     return (

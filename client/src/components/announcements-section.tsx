@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Announcement } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { motion, AnimatePresence } from "framer-motion";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 export default function AnnouncementSection() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -68,7 +69,7 @@ export default function AnnouncementSection() {
         </div>
 
         {loading ? (
-          <p className="text-center text-gray-600">Loading announcements...</p>
+          <LoadingSpinner/>
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
             {/* Create Announcement Card */}

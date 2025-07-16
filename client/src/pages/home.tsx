@@ -7,7 +7,7 @@ import GallerySection from "@/components/gallery-section";
 import Footer from "@/components/footer";
 import ChatbotWidget from "@/components/chatbot-widget";
 import CommunityFormModal from "@/components/community-form-modal";
-import DonateModal from "@/components/DonateModal"
+import DonateModal from "@/components/DonateModal";
 import Announcements from "@/components/announcements-section";
 import Parent from "@/components/parent";
 import { useToast } from "@/hooks/use-toast";
@@ -16,61 +16,59 @@ import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import SignOutModal from "@/components/signoutModal";
-
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showDonateModal, setShowDonateModal] = useState(false);
   const { toast } = useToast();
-  const { user, logout } = useAuth();
+  const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
 
-  const [formData, setFormData] = useState({
-    name: user?.name || "",
-    email: user?.email || "",
-    phone: "",
-    purpose: "",
-    amount: "",
-  });
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const auth = params.get("auth");
+    const reason = params.get("reason") || "";
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+    if (auth === "denied") {
+      toast({
+        title: "Access Denied",
+        description:
+          reason || "You are not registered. Please Join our community first",
+        variant: "destructive",
+      });
+    } else if (auth === "pending") {
+      toast({
+        title: "Access Pending",
+        description:
+          reason ||
+          "Your access is not approved yet.Please Contact Your Administrator.",
+        variant: "destructive",
+      });
+    } else if (auth === "error") {
+      toast({
+        title: "Authentication Error",
+        description: reason || "Something went wrong.",
+        variant: "destructive",
+      });
+    }
+  }, []);
 
-    if (!formData.amount || !formData.purpose) return;
-    navigate("/payment", { state: formData });
-  };
+  if (isLoading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center gap-4">
+        <LoadingSpinner />
+        <p className="text-lg font-medium text-gray-700">
+          Checking authentication...
+        </p>
+      </div>
+    );
+  }
 
-useEffect(() => {
-  const params = new URLSearchParams(window.location.search);
-  const auth = params.get("auth");
-  const reason = params.get("reason") || "";
-
-  if (auth === "denied") {
-    toast({
-      title: "Access Denied",
-      description: reason || "You are not registered. Please join the community first.",
-      variant: "destructive",
-    });
-  } else if (auth === "pending") {
-    toast({
-      title: "Access Pending",
-      description: reason || "Your access is not approved yet. Contact your Administrator.",
-      variant: "destructive",
-    });
-  } else if (auth === "error") {
-    toast({
-      title: "Authentication Error",
-      description: reason || "Something went wrong during login. Please try again.",
-      variant: "destructive",
-    });
-  } 
-}, []);
-
-
+  // ✅ Show public Home, but add logged-in-only features if user exists
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* ✅ Navigation triggers modals */}
       <Navigation
         onOpenCommunityForm={() => setShowForm(true)}
         onOpenProfileModal={() => setShowProfileModal(true)}
@@ -86,19 +84,19 @@ useEffect(() => {
       <Footer />
       <ChatbotWidget />
 
-      {/* ✅ Join Community Modal */}
       <CommunityFormModal
         isOpen={showForm}
         onClose={() => setShowForm(false)}
-        presetEmail=""
+        presetEmail={user?.email || ""}
       />
 
-      {/* ✅ Sign Out Modal */}
-      {showProfileModal && <SignOutModal onClose={() => setShowProfileModal(false)} />}
-
-
-      {/* Donate Modal */}
-      {showDonateModal && <DonateModal onClose={() => setShowDonateModal(false)} />}
+      {/* ✅ Only show profile/donate modals if logged in */}
+      {user && showProfileModal && (
+        <SignOutModal onClose={() => setShowProfileModal(false)} />
+      )}
+      {user && showDonateModal && (
+        <DonateModal onClose={() => setShowDonateModal(false)} />
+      )}
     </div>
   );
 }

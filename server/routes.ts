@@ -494,35 +494,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- MEMBER EMAIL CHECK ---
-  app.post("/api/auth/check-member", async (req: Request, res: Response) => {
-    try {
-      const { email } = req.body;
-
-      if (!email) {
-        return res
-          .status(400)
-          .json({ exists: false, message: "No email provided" });
-      }
-
-      let existingEmails: string[] = [];
-      try {
-        const raw = fs.readFileSync(MEMBERS_FILE_PATH, "utf-8");
-        existingEmails = JSON.parse(raw);
-      } catch (err) {
-        console.warn("Members file not found, treating as empty list.");
-      }
-
-      const exists = existingEmails.includes(email.toLowerCase());
-
-      return res.json({ exists });
-    } catch (err) {
-      console.error("Error checking member:", err);
-      return res
-        .status(500)
-        .json({ exists: false, error: "Internal server error" });
-    }
-  });
 
   // --- CHAT MESSAGE ---
   app.post("/api/chat", async (req: Request, res: Response) => {

@@ -25,6 +25,8 @@ export default function Navigation({
     setIsMenuOpen(false);
   };
 
+  console.log(user)
+
   return (
     <nav className="fixed top-0 w-full z-50 blur-backdrop border-b border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
