@@ -7,7 +7,9 @@ import { sheets } from "../../server/utils/googleDrive.js"; // ✅ Reuse service
 const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || "";
 const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || "";
 const GMAIL_REDIRECT_URI =
-  process.env.GMAIL_REDIRECT_URI || "http://localhost:3000/api/auth/callback";
+  process.env.NODE_ENV === "production"
+    ? "https://pillarsoftruthcoc.vercel.app/api/auth/callback"
+    : "http://localhost:3000/api/auth/callback";
 
 // ✅ Google Sheet ID for users
 const GOOGLE_USERS = process.env.GOOGLE_USERS_SHEET_ID || "";

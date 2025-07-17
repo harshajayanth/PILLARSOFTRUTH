@@ -28,7 +28,9 @@ import { google } from "googleapis";
 const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || "";
 const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || "";
 const GMAIL_REDIRECT_URI =
-  process.env.GMAIL_REDIRECT_URI || "http://localhost:3000/api/auth/callback";
+  process.env.NODE_ENV === "production"
+    ? "https://pillarsoftruthcoc.vercel.app/api/auth/callback"
+    : "http://localhost:3000/api/auth/callback";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@pillarsoftruth.org";
 const MEMBER_EMAIL = process.env.MEMBER_EMAIL || "members@pillarsoftruth.org";
 const GMAIL_PASS_KEY = process.env.GMAIL_PASSKEY;
