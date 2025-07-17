@@ -12,16 +12,16 @@ import Announcements from "@/components/announcements-section";
 import Parent from "@/components/parent";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import SignOutModal from "@/components/signoutModal";
+import About from "@/components/about";
 import LoadingSpinner from "@/components/ui/loading-spinner";
 
 export default function Home() {
   const [showForm, setShowForm] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showDonateModal, setShowDonateModal] = useState(false);
+  const [showAboutModal, setShowAboutModal] = useState(false);
   const { toast } = useToast();
   const { user, logout, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -73,6 +73,7 @@ export default function Home() {
         onOpenCommunityForm={() => setShowForm(true)}
         onOpenProfileModal={() => setShowProfileModal(true)}
         onOpenDonateModal={() => setShowDonateModal(true)}
+        onshowAboutModal={() => setShowAboutModal(true)}
       />
 
       <HeroSection onOpenCommunityForm={() => setShowForm(true)} />
@@ -89,6 +90,8 @@ export default function Home() {
         onClose={() => setShowForm(false)}
         presetEmail={user?.email || ""}
       />
+
+      {showAboutModal && (<About onClose={()=>setShowAboutModal(false)}/>)}
 
       {/* ✅ Only show profile/donate modals if logged in */}
       {user && showProfileModal && (

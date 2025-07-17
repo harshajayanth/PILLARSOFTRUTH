@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 interface Donation {
   UniqueId: string;
@@ -55,7 +56,7 @@ export default function DonationsPage() {
 
       const data = await res.json();
 
-      const sortedData = data.sort((a:any, b:any) => {
+      const sortedData = data.sort((a: any, b: any) => {
         return (
           new Date(b.TimeStamp).getTime() - new Date(a.TimeStamp).getTime()
         );
@@ -122,8 +123,11 @@ export default function DonationsPage() {
 
   if (loading || !user) {
     return (
-      <div className="p-6 text-center text-lg text-gray-600">
-        Loading donations...
+      <div className="h-screen flex flex-col items-center justify-center gap-4">
+        <LoadingSpinner />
+        <p className="text-lg font-medium text-gray-700">
+          Loading Donations...
+        </p>
       </div>
     );
   }

@@ -11,6 +11,8 @@ import { MoreVertical } from "lucide-react";
 import EditUserModal from "@/components/EditUserModal";
 import DeleteUserModal from "@/components/DeleteUserModal";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 interface User {
   id?: string;
@@ -22,7 +24,7 @@ interface User {
   access?: string;
 }
 
-// ✅ Pill Badge for Access Status
+// ✅ Status Badge
 function StatusBadge({ status }: { status: any }) {
   const normalized = (status || "").toString().trim().toLowerCase();
   const isActive = normalized === "active";
@@ -51,27 +53,31 @@ function StatusBadge({ status }: { status: any }) {
   );
 }
 
+// ✅ API fetcher for all users
+const fetchAllUsers = async (): Promise<User[]> => {
+  const res = await fetch("/api/users");
+  if (!res.ok) throw new Error("Failed to fetch users");
+  return res.json();
+};
+
 export default function UsersPage() {
   const navigate = useNavigate();
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
-  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>([]);
 
-  const [searchTerm, setSearchTerm] = useState(""); // ✅ search state
-
-  // ✅ Fetch logged-in user (must be admin)
+  // ✅ Auth check (must be admin)
   const fetchUser = async () => {
     try {
       const res = await fetch("/api/auth/me");
       const data = await res.json();
 
       if (!data?.email || data.role !== "admin") {
-        navigate("/"); // not admin
+        navigate("/"); // redirect if not admin
         return;
       }
       setUser(data);
@@ -81,34 +87,30 @@ export default function UsersPage() {
     }
   };
 
-  // ✅ Fetch all users from sheet
-  const fetchAllUsers = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch("/api/users");
-      const data = await res.json();
-      setUsers(data || []); // ensure always array
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    // first fetch user, then fetch users list
-    const init = async () => {
-      await fetchUser();
-      await fetchAllUsers();
-    };
-    init();
+    fetchUser(); // check auth on mount
   }, []);
 
-  if (loading) {
-    return <p className="text-center mt-10">Loading users...</p>;
-  }
+  // ✅ React Query fetch for users
+  const {
+    data: users = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["users"], // cache key
+    queryFn: fetchAllUsers,
+  });
 
-  // ✅ Filter users by searchTerm (case insensitive)
+  // ✅ Show loading or error states
+  if (isLoading) return <div className="h-screen flex flex-col items-center justify-center gap-4">
+          <LoadingSpinner />
+          <p className="text-lg font-medium text-gray-700">
+            Loading Users...
+          </p>
+        </div>;
+  if (isError) return <p className="text-center mt-10 text-red-500">Failed to load users</p>;
+
+  // ✅ Search filter
   const filteredUsers = users.filter((u) => {
     const query = searchTerm.toLowerCase();
     if (query === "active" || query === "inactive") {
@@ -168,32 +170,17 @@ export default function UsersPage() {
             <tbody className="text-center justify-center">
               {filteredUsers.map((user, index) => (
                 <tr key={user.id || user.email} className="hover:bg-gray-50">
-                  {/* ✅ S.No */}
                   <td className="p-3 border">{index + 1}</td>
-
-                  {/* ✅ Name */}
                   <td className="p-3 border">{user.username || "-"}</td>
-
-                  {/* ✅ Age */}
                   <td className="p-3 border">{user.age || "-"}</td>
-
-                  {/* ✅ Phone */}
                   <td className="p-3 border">{user.phone || "-"}</td>
-
-                  {/* ✅ Gmail */}
                   <td className="p-3 border">{user.email}</td>
-
-                  {/* ✅ Role */}
                   <td className="p-3 border font-semibold">
                     {user.role === "admin" ? "Admin" : "User"}
                   </td>
-
-                  {/* ✅ Access Pill */}
                   <td className="p-3 border flex flex-wrap justify-center">
                     <StatusBadge status={user.access} />
                   </td>
-
-                  {/* ✅ Actions */}
                   <td className="p-3 border text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -201,7 +188,6 @@ export default function UsersPage() {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-
                       <DropdownMenuContent>
                         <DropdownMenuItem
                           onClick={() => {
@@ -232,7 +218,10 @@ export default function UsersPage() {
 
       {/* ✅ Edit Modal */}
       {editOpen && selectedUser && (
-        <EditUserModal user={selectedUser} onClose={() => setEditOpen(false)} />
+        <EditUserModal
+          user={selectedUser}
+          onClose={() => setEditOpen(false)}
+        />
       )}
 
       {/* ✅ Delete Modal */}

@@ -7,10 +7,12 @@ export default function Navigation({
   onOpenCommunityForm,
   onOpenProfileModal,
   onOpenDonateModal,
+  onshowAboutModal
 }: {
   onOpenCommunityForm: () => void;
   onOpenProfileModal: () => void;
   onOpenDonateModal: () => void;
+  onshowAboutModal: () => void;
 }) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { user, login } = useAuth();
@@ -25,7 +27,7 @@ export default function Navigation({
     setIsMenuOpen(false);
   };
 
-  console.log(user)
+  console.log(user);
 
   return (
     <nav className="fixed top-0 w-full z-50 blur-backdrop border-b border-gray-200">
@@ -121,6 +123,15 @@ export default function Navigation({
                 </Button>
               </div>
             )}
+
+            <div
+              onClick={onshowAboutModal}
+              className="flex items-center gap-2 text-gray-700 border-gray-300 hover:bg-gray-100 cursor-pointer"
+            >
+              <span className="material-icons" title="About">
+                info
+              </span>
+            </div>
 
             <button
               className="md:hidden text-gray-600"
