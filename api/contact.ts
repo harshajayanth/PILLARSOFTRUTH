@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sheets } from "../server/utils/googleDrive.js"; // ✅ shared auth
 import { v4 as uuidv4 } from "uuid";
-import { transporter } from "./lib/mailer.js";
+import { transporter } from "../server/lib/mailer.js";
 import { contactFormSchema } from "../shared/schema.js"; 
 
 

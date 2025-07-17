@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { drive } from "../server/utils/googleDrive.js"; // ✅ use exported authenticated drive
-import { verifyToken } from "./lib/jwt.js";
+import { verifyToken } from "../server/lib/jwt.js";
 
 const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || "";
 

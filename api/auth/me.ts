@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { verifyToken } from "../lib/jwt.js";
+import { verifyToken } from "../../server/lib/jwt.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const token = req.cookies?.auth_token;

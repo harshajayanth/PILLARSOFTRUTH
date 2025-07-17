@@ -7,6 +7,7 @@ import LoadingSpinner from "@/components/ui/loading-spinner";
 export default function AnnouncementSection() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState(false);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [sentAnnouncements, setSentAnnouncements] = useState<string[]>([]);
   const { user } = useAuth();
@@ -31,10 +32,28 @@ export default function AnnouncementSection() {
       });
   }, []);
 
+  async function redirectToForm() {
+    setRedirecting(true);
+    try {
+      const res = await fetch("/api/announcements", { method: "PUT" });
+      if (!res.ok) throw new Error("Failed to fetch form URL");
+
+      const data = await res.json();
+      if (data.url) {
+        window.open(data.url, "_blank"); // open in new tab
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Unable to open announcement form");
+    } finally {
+      setRedirecting(false);
+    }
+  }
+
   const sendAnnouncement = async (a: Announcement) => {
     try {
       setSendingId(a.id); // Start sending
-      const res = await fetch("/api/send-announcement", {
+      const res = await fetch("/api/announcements", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(a),
@@ -69,23 +88,27 @@ export default function AnnouncementSection() {
         </div>
 
         {loading ? (
-          <LoadingSpinner/>
+          <LoadingSpinner />
         ) : (
           <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar">
             {/* Create Announcement Card */}
-            <a
-              href="/api/create-announcement"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-none w-80 h-80 bg-white border border-dashed border-blue-400 rounded-xl shadow-sm hover:shadow-md transition flex flex-col justify-center items-center"
+            <div
+              className="flex flex-col items-center justify-center border-2 border-dotted border-blue-400 rounded-lg p-4 w-80 h-80 cursor-pointer hover:border-blue-600 transition"
+              onClick={redirectToForm}
             >
-              <span className="material-icons text-blue-500 text-4xl mb-2">
-                add_circle_outline
-              </span>
-              <span className="font-medium text-blue-600 text-base">
-                Create Announcement
-              </span>
-            </a>
+              {redirecting ? (
+                <LoadingSpinner/>
+              ) : (
+                <>
+                  <span className="material-icons text-blue-500 text-4xl mb-2">
+                    add_circle_outline
+                  </span>
+                  <span className="font-medium text-blue-600 text-base">
+                    Create Announcement
+                  </span>
+                </>
+              )}
+            </div>
 
             {/* Announcement Cards */}
             {announcements?.map((a) => (
@@ -106,13 +129,17 @@ export default function AnnouncementSection() {
                       <div className="flex items-center text-gray-500 bg-gray-100 px-2 py-1 rounded text-sm gap-1">
                         Sending...
                       </div>
-                    ) : (user.role==="admin"&&
-                      <button
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm border border-blue-200 rounded px-2 py-1"
-                        onClick={() => sendAnnouncement(a)}
-                      >
-                        <span className="material-icons" title="Send Gmail">mail</span>
-                      </button>
+                    ) : (
+                      user.role === "admin" && (
+                        <button
+                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-sm border border-blue-200 rounded px-2 py-1"
+                          onClick={() => sendAnnouncement(a)}
+                        >
+                          <span className="material-icons" title="Send Gmail">
+                            mail
+                          </span>
+                        </button>
+                      )
                     )}
                   </h3>
 

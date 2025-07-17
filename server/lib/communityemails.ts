@@ -1,4 +1,4 @@
-import { sheets } from "../../server/utils/googleDrive.js"; 
+import { sheets } from "../utils/googleDrive.js"; 
 const GOOGLE_USERS = process.env.GOOGLE_USERS_SHEET_ID!;
 
 export async function getCommunityEmails() {

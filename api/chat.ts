@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { chatMessageSchema } from "../shared/schema.js";
-import { verifyToken } from "./lib/jwt.js";
-import { getCommunityEmails } from "./lib/communityemails.js";
-import { transporter } from "./lib/mailer.js";
+import { verifyToken } from "../server/lib/jwt.js";
+import { getCommunityEmails } from "../server/lib/communityemails.js";
+import { transporter } from "../server/lib/mailer.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {

@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
-import { signToken } from "../lib/jwt.js";
+import { signToken } from "../../server/lib/jwt.js";
 import { sheets } from "../../server/utils/googleDrive.js"; // ✅ Reuse service account
 
 // ✅ OAuth2 Client (for Google Login only)

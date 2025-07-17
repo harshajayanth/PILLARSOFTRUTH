@@ -46,9 +46,22 @@ export default function DonationsPage() {
   const fetchDonations = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/donations/list");
+
+      const res = await fetch("/api/donations");
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
       const data = await res.json();
-      setDonations(data);
+
+      const sortedData = data.sort((a:any, b:any) => {
+        return (
+          new Date(b.TimeStamp).getTime() - new Date(a.TimeStamp).getTime()
+        );
+      });
+
+      setDonations(sortedData);
     } catch (err) {
       console.error("Failed to fetch donations:", err);
     } finally {
@@ -59,8 +72,8 @@ export default function DonationsPage() {
   const markAsReceived = async (uniqueId: string) => {
     try {
       setUpdatingId(uniqueId);
-      await fetch("/api/donations/confirm", {
-        method: "POST",
+      await fetch("/api/donations", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uniqueId }),
       });
@@ -78,35 +91,34 @@ export default function DonationsPage() {
 
   // ✅ Filter donations based on search term
   const filteredDonations = donations.filter((d) => {
-  const query = searchTerm.trim().toLowerCase();
+    const query = searchTerm.trim().toLowerCase();
 
-  if (!query) return true; // show all if empty
+    if (!query) return true; // show all if empty
 
-  const name = (d.Name ?? "").toString().toLowerCase();
-  const email = (d.Email ?? "").toString().toLowerCase();
-  const amount = (d.Amount ?? "").toString().toLowerCase();
-  const purpose = (d.Purpose ?? "").toString().toLowerCase();
-  const time = (d.TimeStamp ?? "").toString().toLowerCase();
+    const name = (d.Name ?? "").toString().toLowerCase();
+    const email = (d.Email ?? "").toString().toLowerCase();
+    const amount = (d.Amount ?? "").toString().toLowerCase();
+    const purpose = (d.Purpose ?? "").toString().toLowerCase();
+    const time = (d.TimeStamp ?? "").toString().toLowerCase();
 
-  const confirmedStatus =
-    d.Confirmed?.toString().toUpperCase() === "TRUE" ? "received" : "pending";
+    const confirmedStatus =
+      d.Confirmed?.toString().toUpperCase() === "TRUE" ? "received" : "pending";
 
-  // If query is a number, allow exact match on amount
-  if (!isNaN(Number(query))) {
-    return amount === query;
-  }
+    // If query is a number, allow exact match on amount
+    if (!isNaN(Number(query))) {
+      return amount === query;
+    }
 
-  // Otherwise match any field
-  return (
-    name.includes(query) ||
-    email.includes(query) ||
-    amount.includes(query) ||
-    purpose.includes(query) ||
-    time.includes(query) ||
-    confirmedStatus.includes(query)
-  );
-});
-
+    // Otherwise match any field
+    return (
+      name.includes(query) ||
+      email.includes(query) ||
+      amount.includes(query) ||
+      purpose.includes(query) ||
+      time.includes(query) ||
+      confirmedStatus.includes(query)
+    );
+  });
 
   if (loading || !user) {
     return (
