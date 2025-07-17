@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import LoadingSpinner from "@/components/ui/loading-spinner";
 
 interface Donation {
   UniqueId: string;
@@ -46,9 +47,22 @@ export default function DonationsPage() {
   const fetchDonations = async () => {
     try {
       setLoading(true);
-      const res = await fetch("/api/donations/list");
+
+      const res = await fetch("/api/donations");
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
+
       const data = await res.json();
-      setDonations(data);
+
+      const sortedData = data.sort((a: any, b: any) => {
+        return (
+          new Date(b.TimeStamp).getTime() - new Date(a.TimeStamp).getTime()
+        );
+      });
+
+      setDonations(sortedData);
     } catch (err) {
       console.error("Failed to fetch donations:", err);
     } finally {
@@ -59,8 +73,8 @@ export default function DonationsPage() {
   const markAsReceived = async (uniqueId: string) => {
     try {
       setUpdatingId(uniqueId);
-      await fetch("/api/donations/confirm", {
-        method: "POST",
+      await fetch("/api/donations", {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ uniqueId }),
       });
@@ -78,35 +92,42 @@ export default function DonationsPage() {
 
   // ✅ Filter donations based on search term
   const filteredDonations = donations.filter((d) => {
-    const query = searchTerm.toLowerCase();
+    const query = searchTerm.trim().toLowerCase();
 
     if (!query) return true; // show all if empty
 
-    const name = d.Name?.toLowerCase() || "";
-    const email = d.Email?.toLowerCase() || "";
-    const amount = d.Amount?.toLowerCase() || "";
-    const purpose = d.Purpose?.toLowerCase() || "";
-    const time = d.TimeStamp?.toLowerCase() || "";
-    const status = d.Confirmed === "TRUE" ? "received" : "pending";
+    const name = (d.Name ?? "").toString().toLowerCase();
+    const email = (d.Email ?? "").toString().toLowerCase();
+    const amount = (d.Amount ?? "").toString().toLowerCase();
+    const purpose = (d.Purpose ?? "").toString().toLowerCase();
+    const time = (d.TimeStamp ?? "").toString().toLowerCase();
 
+    const confirmedStatus =
+      d.Confirmed?.toString().toUpperCase() === "TRUE" ? "received" : "pending";
+
+    // If query is a number, allow exact match on amount
     if (!isNaN(Number(query))) {
       return amount === query;
     }
 
+    // Otherwise match any field
     return (
       name.includes(query) ||
       email.includes(query) ||
       amount.includes(query) ||
       purpose.includes(query) ||
       time.includes(query) ||
-      status.includes(query)
+      confirmedStatus.includes(query)
     );
   });
 
   if (loading || !user) {
     return (
-      <div className="p-6 text-center text-lg text-gray-600">
-        Loading donations...
+      <div className="h-screen flex flex-col items-center justify-center gap-4">
+        <LoadingSpinner />
+        <p className="text-lg font-medium text-gray-700">
+          Loading Donations...
+        </p>
       </div>
     );
   }

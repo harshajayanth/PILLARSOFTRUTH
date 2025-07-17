@@ -7,12 +7,12 @@ export default function DeleteUserModal({ user, onClose }: { user: any; onClose:
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/users/${user.id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+    mutationFn: () => apiRequest("DELETE", `/api/users?id=${user.id}`),
+    onSuccess: async() => {
+      await queryClient.invalidateQueries({ queryKey: ["users"],exact:false });
       onClose();
     },
-  });
+  }); 
 
   return (
     <div className="fixed inset-0 bg-black/50 flex justify-center items-center z-50">

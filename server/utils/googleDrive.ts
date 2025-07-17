@@ -1,16 +1,23 @@
 import { google } from "googleapis";
-import path from "path";
-import { fileURLToPath } from 'url';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n");
 
-export const auth = new google.auth.GoogleAuth({
-  keyFile: path.join(__dirname, "../config/service-account-key.json"),
-  scopes: ["https://www.googleapis.com/auth/drive.readonly","https://www.googleapis.com/auth/drive","https://www.googleapis.com/auth/spreadsheets"],
+if (!clientEmail || !privateKey) {
+  throw new Error("Missing GOOGLE_CLIENT_EMAIL or GOOGLE_PRIVATE_KEY in environment variables");
+}
+
+// ✅ Use object form instead of multiple params
+export const auth = new google.auth.JWT({
+  email: clientEmail,
+  key: privateKey,
+  scopes: [
+    "https://www.googleapis.com/auth/drive.readonly",
+    "https://www.googleapis.com/auth/drive",
+    "https://www.googleapis.com/auth/spreadsheets",
+  ],
 });
 
-export const drive = google.drive({
-  version: "v3",
-  auth,
-});
+// ✅ Export Google Drive & Sheets clients
+export const drive = google.drive({ version: "v3", auth });
+export const sheets = google.sheets({ version: "v4", auth });

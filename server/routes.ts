@@ -28,7 +28,9 @@ import { google } from "googleapis";
 const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || "";
 const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET || "";
 const GMAIL_REDIRECT_URI =
-  process.env.GMAIL_REDIRECT_URI || "http://localhost:3000/api/auth/callback";
+  process.env.NODE_ENV === "production"
+    ? "https://pillarsoftruthcoc.vercel.app/api/auth/callback"
+    : "http://localhost:3000/api/auth/callback";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "admin@pillarsoftruth.org";
 const MEMBER_EMAIL = process.env.MEMBER_EMAIL || "members@pillarsoftruth.org";
 const GMAIL_PASS_KEY = process.env.GMAIL_PASSKEY;
@@ -494,35 +496,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- MEMBER EMAIL CHECK ---
-  app.post("/api/auth/check-member", async (req: Request, res: Response) => {
-    try {
-      const { email } = req.body;
-
-      if (!email) {
-        return res
-          .status(400)
-          .json({ exists: false, message: "No email provided" });
-      }
-
-      let existingEmails: string[] = [];
-      try {
-        const raw = fs.readFileSync(MEMBERS_FILE_PATH, "utf-8");
-        existingEmails = JSON.parse(raw);
-      } catch (err) {
-        console.warn("Members file not found, treating as empty list.");
-      }
-
-      const exists = existingEmails.includes(email.toLowerCase());
-
-      return res.json({ exists });
-    } catch (err) {
-      console.error("Error checking member:", err);
-      return res
-        .status(500)
-        .json({ exists: false, error: "Internal server error" });
-    }
-  });
 
   // --- CHAT MESSAGE ---
   app.post("/api/chat", async (req: Request, res: Response) => {

@@ -24,9 +24,9 @@ export default function EditUserModal({
 
   const updateMutation = useMutation({
     mutationFn: (data: any) =>
-      apiRequest("PUT", `/api/users/${user.id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["users"] });
+      apiRequest("PUT", `/api/users?id=${user.id}`, data),
+    onSuccess: async() => {
+      await queryClient.invalidateQueries({ queryKey: ["users"],exact:false });
       onClose();
     },
   });
