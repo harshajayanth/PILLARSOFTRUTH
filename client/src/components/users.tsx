@@ -101,7 +101,7 @@ export default function UsersPage() {
     queryFn: fetchAllUsers,
   });
 
-  // ✅ Show loading or error states
+
   if (isLoading) return <div className="h-screen flex flex-col items-center justify-center gap-4">
           <LoadingSpinner />
           <p className="text-lg font-medium text-gray-700">
