@@ -10,6 +10,7 @@ import NotFound from "@/pages/not-found";
 import Payment from "@/components/payment";
 import Donations from "@/components/donations";
 import Users from "@/components/users";
+import FinanceDashboard from "./components/financedashboard";
 
 function AppRouter() {
   return (
@@ -20,6 +21,7 @@ function AppRouter() {
         <Route path="*" element={<NotFound />} />
         <Route path="/admin/donations" element={<Donations/>} />
         <Route path="/admin/users" element={<Users/>} />
+        <Route path="/admin/finance" element={<FinanceDashboard/>} />
       </Routes>
     </BrowserRouter>
   );
