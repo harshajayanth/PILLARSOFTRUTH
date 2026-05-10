@@ -5,8 +5,21 @@ export const contactFormSchema = z.object({
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   email: z.string().email("Valid email is required"),
+  location: z.string().min(1, "Location is required"),
   phone: z.string().min(1, "Phone number is required"),
-  ageGroup: z.string().min(1, "Please select an age group"),
+  age: z.coerce
+    .number({
+      required_error:
+        "Age is required",
+    })
+    .min(
+      1,
+      "Minimum age is 15"
+    )
+    .max(
+      120,
+      "Maximum age is 40"
+    ),
   hearAbout: z.string().min(1, "Please select how you heard about us"),
   message: z.string().min(10, "Please tell us more about yourself"),
   agreeCommunications: z.boolean().refine(val => val === true, "You must agree to receive communications")

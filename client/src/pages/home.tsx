@@ -9,6 +9,7 @@ import ChatbotWidget from "@/components/chatbot-widget";
 import CommunityFormModal from "@/components/community-form-modal";
 import DonateModal from "@/components/DonateModal";
 import Announcements from "@/components/announcements-section";
+import ViewMembersWidget from "@/components/viewMembers";
 import Parent from "@/components/parent";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
@@ -83,6 +84,7 @@ export default function Home() {
       <GallerySection />
       <Parent />
       <Footer />
+      <ViewMembersWidget/>
       <ChatbotWidget />
 
       <CommunityFormModal

@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 import { google } from "googleapis";
 
 const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;

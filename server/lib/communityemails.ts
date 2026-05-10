@@ -4,7 +4,7 @@ const GOOGLE_USERS = process.env.GOOGLE_USERS_SHEET_ID!;
 export async function getCommunityEmails() {
   const result = await sheets.spreadsheets.values.get({
     spreadsheetId: GOOGLE_USERS,
-    range: `Sheet1!A1:I`,
+    range: `Sheet1!A1:L`,
   });
 
   const rows = result.data.values || [];

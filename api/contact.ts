@@ -21,8 +21,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const validation = contactFormSchema.safeParse(req.body);
     if (!validation.success) {
       return res.status(400).json({
-        message: "Invalid form data",
-        errors: validation.error.errors,
+        message: "Invalid form data"
       });
     }
 
@@ -54,7 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       formData.email,
       "user", // default role
       formData.phone || "",
-      formData.ageGroup || "",
+      formData.age || "",
       formData.hearAbout || "",
       formData.message || "",
       "inactive", // default access status
@@ -80,7 +79,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         <p><strong>Name:</strong> ${formData.firstName} ${formData.lastName}</p>
         <p><strong>Email:</strong> ${formData.email}</p>
         <p><strong>Phone:</strong> ${formData.phone || "Not provided"}</p>
-        <p><strong>Age Group:</strong> ${formData.ageGroup || "Not provided"}</p>
+        <p><strong>Location:</strong> ${formData.location || "Not provided"}</p>
+        <p><strong>Age Group:</strong> ${formData.age || "Not provided"}</p>
         <p><strong>Heard about us:</strong> ${formData.hearAbout || "Not specified"}</p>
         <p><strong>Message:</strong> ${formData.message || "No message"}</p>
       `,

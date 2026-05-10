@@ -27,7 +27,7 @@ export default function Navigation({
     setIsMenuOpen(false);
   };
 
-  console.log(user);
+  // console.log(user);
 
   return (
     <nav className="fixed top-0 w-full z-50 blur-backdrop border-b border-gray-200">

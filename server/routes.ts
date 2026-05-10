@@ -110,47 +110,147 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/auth/callback", async (req: Request, res: Response) => {
     try {
       const { code } = req.query;
-      if (!code)
-        return res.status(400).json({ message: "Authorization code missing" });
 
-      const { tokens } = await oauth2Client.getToken(code as string);
-      oauth2Client.setCredentials(tokens);
-
-      const oauth2 = google.oauth2({ version: "v2", auth: oauth2Client });
-      const { data: userInfo } = await oauth2.userinfo.get();
-
-      const sheets = google.sheets({ version: "v4", auth });
-
-      const userEmail = userInfo.email?.toLowerCase();
-      if (!userEmail) {
-        return res.redirect("/?auth=error&reason=missing_email");
+      if (!code) {
+        return res
+          .status(400)
+          .json({ message: "Authorization code missing" });
       }
 
-      const sheetData = await sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_USERS,
-        range: `Sheet1!A2:I`,
-      });
-
-      const rows = sheetData.data.values || [];
-      const matchedUser = rows.find(
-        (row) => row[2]?.toLowerCase() === userEmail
+      // =========================================
+      // GET TOKENS
+      // =========================================
+      const { tokens } = await oauth2Client.getToken(
+        code as string
       );
 
+      oauth2Client.setCredentials(tokens);
+
+      // =========================================
+      // GET GOOGLE USER INFO
+      // =========================================
+      const oauth2 = google.oauth2({
+        version: "v2",
+        auth: oauth2Client,
+      });
+
+      const { data: userInfo } =
+        await oauth2.userinfo.get();
+
+      const userEmail = userInfo.email
+        ?.toString()
+        .trim()
+        .toLowerCase();
+
+      console.log("=================================");
+      console.log("LOGIN EMAIL:", userEmail);
+      console.log("=================================");
+
+      if (!userEmail) {
+        return res.redirect(
+          "/?auth=error&reason=missing_email"
+        );
+      }
+
+      // =========================================
+      // FETCH USERS SHEET
+      // =========================================
+      const sheets = google.sheets({
+        version: "v4",
+        auth,
+      });
+
+      const sheetData =
+        await sheets.spreadsheets.values.get({
+          spreadsheetId: GOOGLE_USERS,
+          range: `Sheet1!A2:L`,
+        });
+
+      const rows = sheetData.data.values || [];
+
+      console.log("TOTAL ROWS:", rows.length);
+
+      // =========================================
+      // DEBUG ALL EMAILS
+      // =========================================
+      rows.forEach((row, index) => {
+        console.log(
+          `ROW ${index + 2}:`,
+          row[2]
+        );
+      });
+
+      // =========================================
+      // FIND USER
+      // =========================================
+      const matchedUser = rows.find((row) => {
+        const sheetEmail = row[2]
+          ?.toString()
+          .trim()
+          .toLowerCase();
+
+        return sheetEmail === userEmail;
+      });
+
+      console.log("MATCHED USER:", matchedUser);
+
+      // =========================================
+      // USER NOT FOUND
+      // =========================================
       if (!matchedUser) {
-        console.warn(`❌ User not found: ${userEmail}`);
-        return res.redirect("/?auth=denied");
+        console.warn(
+          `❌ User not found: ${userEmail}`
+        );
+
+        return res.redirect(
+          "/?auth=denied&reason=user_not_found"
+        );
       }
 
-      const roleFromSheet = (matchedUser[3] || "user").toLowerCase();
-      const access = (matchedUser[8] || "").toLowerCase();
+      // =========================================
+      // ACCESS + ROLE
+      // =========================================
+      const roleFromSheet = (
+        matchedUser[3] || "user"
+      )
+        .toString()
+        .trim()
+        .toLowerCase();
 
+      const access = (
+        matchedUser[9] || ""
+      )
+        .toString()
+        .trim()
+        .toLowerCase();
+
+      console.log("ROLE:", roleFromSheet);
+      console.log("ACCESS:", access);
+
+      // =========================================
+      // ACCESS CHECK
+      // =========================================
       if (access !== "active") {
-        console.warn(`⏳ Access not approved for: ${userEmail}`);
-        return res.redirect("/?auth=pending");
+        console.warn(
+          `⏳ Access not approved for: ${userEmail}`
+        );
+
+        return res.redirect(
+          "/?auth=pending&reason=inactive_access"
+        );
       }
 
-      const finalRole = roleFromSheet === "admin" ? "admin" : "user";
+      // =========================================
+      // FINAL ROLE
+      // =========================================
+      const finalRole =
+        roleFromSheet === "admin"
+          ? "admin"
+          : "user";
 
+      // =========================================
+      // USER SESSION
+      // =========================================
       const user: AuthUser = {
         email: userInfo.email!,
         name: userInfo.name!,
@@ -160,18 +260,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       (req.session as any).user = user;
-      (req.session as any).access_token = tokens.access_token;
 
-      res.cookie("sessionId", req.session.id, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 24 * 60 * 60 * 1000,
-      });
+      (req.session as any).access_token =
+        tokens.access_token;
 
+      // =========================================
+      // COOKIE
+      // =========================================
+      res.cookie(
+        "sessionId",
+        req.session.id,
+        {
+          httpOnly: true,
+          secure:
+            process.env.NODE_ENV ===
+            "production",
+          maxAge: 24 * 60 * 60 * 1000,
+        }
+      );
+
+      console.log("✅ LOGIN SUCCESS");
+
+      // =========================================
+      // SUCCESS
+      // =========================================
       res.redirect("/?auth=success");
     } catch (error) {
-      console.error("Auth callback error:", error);
-      res.redirect("/?auth=error");
+      console.error(
+        "Auth callback error:",
+        error
+      );
+
+      res.redirect(
+        "/?auth=error&reason=server_error"
+      );
     }
   });
 
@@ -264,7 +386,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sheets = google.sheets({ version: "v4", auth });
       const result = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_USERS,
-        range: `Sheet1!A1:I`, // adjust columns
+        range: `Sheet1!A1:L`, // adjust columns
       });
 
       const rows = result.data.values || [];
@@ -285,60 +407,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   //Update User
-  app.put("/api/users/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const { username, email, role, phone, age, source, bio, access } =
-        req.body;
+  app.put(
+    "/api/users/:id",
+    async (req, res) => {
+      try {
+        const { id } =
+          req.params;
 
-      const sheets = google.sheets({ version: "v4", auth });
+        const sheets =
+          google.sheets({
+            version: "v4",
+            auth,
+          });
 
-      // ✅ Fetch all rows to find correct row
-      const result = await sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_USERS,
-        range: `Sheet1!A1:I`, // A→I covers 9 columns
-      });
+        // FETCH SHEET
+        const result =
+          await sheets.spreadsheets.values.get(
+            {
+              spreadsheetId:
+                GOOGLE_USERS,
 
-      const rows = result.data.values || [];
-      const headers = rows[0];
-      const idIndex = headers.indexOf("id");
+              range:
+                "Sheet1!A1:L",
+            }
+          );
 
-      if (idIndex === -1) {
-        return res.status(500).json({ error: "No 'id' column found" });
+        const rows =
+          result.data.values ||
+          [];
+
+        const headers =
+          rows[0];
+
+        const idIndex =
+          headers.indexOf(
+            "id"
+          );
+
+        if (
+          idIndex === -1
+        ) {
+          return res
+            .status(500)
+            .json({
+              error:
+                "No id column found",
+            });
+        }
+
+        // FIND USER ROW
+        const rowIndex =
+          rows.findIndex(
+            (r) =>
+              r[
+                idIndex
+              ] === id
+          );
+
+        if (
+          rowIndex === -1
+        ) {
+          return res
+            .status(404)
+            .json({
+              error:
+                "User not found",
+            });
+        }
+
+        // EXISTING ROW
+        const existingRow =
+          rows[rowIndex];
+
+        const existingUser =
+          Object.fromEntries(
+            headers.map(
+              (
+                key,
+                i
+              ) => [
+                key,
+                existingRow[
+                  i
+                ] || "",
+              ]
+            )
+          );
+
+        const body =
+          req.body;
+
+        // FINAL UPDATED ROW
+        const updatedRow =
+          [
+            existingUser.id,
+
+            body.username ??
+              existingUser.username,
+
+            existingUser.email,
+
+            existingUser.role,
+
+            body.phone ??
+              existingUser.phone,
+
+            body.location ??
+              existingUser.location,
+
+            body.age ??
+              existingUser.age,
+
+            existingUser.source,
+
+            body.bio ??
+              existingUser.bio,
+
+            existingUser.access,
+
+            body.position ??
+              existingUser.position,
+
+            existingUser.youth_leader,
+          ];
+
+        console.log(
+          "UPDATED ROW:",
+          updatedRow
+        );
+
+        // UPDATE SHEET
+        await sheets.spreadsheets.values.update(
+          {
+            spreadsheetId:
+              GOOGLE_USERS,
+
+            range: `Sheet1!A${
+              rowIndex + 1
+            }:L${
+              rowIndex + 1
+            }`,
+
+            valueInputOption:
+              "RAW",
+
+            requestBody: {
+              values: [
+                updatedRow,
+              ],
+            },
+          }
+        );
+
+        return res
+          .status(200)
+          .json({
+            success: true,
+            message:
+              "User updated successfully",
+          });
+      } catch (err) {
+        console.error(
+          "Error updating user:",
+          err
+        );
+
+        return res
+          .status(500)
+          .json({
+            error:
+              "Internal server error",
+          });
       }
-
-      const rowIndex = rows.findIndex((r) => r[idIndex] === id);
-      if (rowIndex === -1) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      // ✅ Build updated row
-      const updatedRow = [
-        id,
-        username,
-        email,
-        role,
-        phone,
-        age,
-        source,
-        bio,
-        access,
-      ];
-
-      // ✅ Update the correct row
-      await sheets.spreadsheets.values.update({
-        spreadsheetId: GOOGLE_USERS,
-        range: `Sheet1!A${rowIndex + 1}:I${rowIndex + 1}`,
-        valueInputOption: "RAW",
-        requestBody: { values: [updatedRow] },
-      });
-
-      res.json({ message: `User with id ${id} updated successfully` });
-    } catch (err) {
-      console.error("Error updating user:", err);
-      res.status(500).json({ error: err });
     }
-  });
+  );
 
   //Delete User
   app.delete("/api/users/:id", async (req, res) => {
@@ -350,7 +592,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // ✅ Fetch all rows
       const result = await sheets.spreadsheets.values.get({
         spreadsheetId: GOOGLE_USERS,
-        range: `Sheet1!A1:I`,
+        range: `Sheet1!A1:L`,
       });
 
       const rows = result.data.values || [];
@@ -435,7 +677,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         formData.email,
         "user", // default role
         formData.phone || "",
-        formData.ageGroup || "",
+        formData.location || "",
+        formData.age || "",
         formData.hearAbout || "",
         formData.message || "", // bio/message
         "inactive", // access
@@ -461,11 +704,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         <p><strong>Name:</strong> ${formData.firstName} ${formData.lastName}</p>
         <p><strong>Email:</strong> ${formData.email}</p>
         <p><strong>Phone:</strong> ${formData.phone || "Not provided"}</p>
-        <p><strong>Age Group:</strong> ${formData.ageGroup}</p>
+        <p><strong>Age Group:</strong> ${formData.age}</p>
+        <p><strong>Location :</strong> ${formData.location}</p>
         <p><strong>Heard about us:</strong> ${
           formData.hearAbout || "Not specified"
         }</p>
-        <p><strong>Message:</strong> ${formData.message}</p>
+        <p><strong>Bio:</strong> ${formData.message}</p>
       `,
       };
       await transporter.sendMail(mailOptions);
