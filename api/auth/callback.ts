@@ -44,19 +44,36 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // ✅ 3. Fetch Google Sheet users via service account
     const sheetData = await sheets.spreadsheets.values.get({
       spreadsheetId: GOOGLE_USERS,
-      range: `Sheet1!A2:I`,
+      range: `Sheet1!A2:L`,
     });
 
     const rows = sheetData.data.values || [];
-    const matchedUser = rows.find((row) => row[2]?.toLowerCase() === userEmail);
+    console.log(rows)
+    const matchedUser = rows.find((row) => {
+      const sheetEmail = row[2]
+        ?.toString()
+        .trim()
+        .toLowerCase();
+
+      return sheetEmail === userEmail.trim().toLowerCase();
+    });
+
+    console.log(matchedUser)
 
     if (!matchedUser) {
       console.warn(`❌ User not found: ${userEmail}`);
       return res.redirect("/?auth=denied");
     }
 
-    const roleFromSheet = (matchedUser[3] || "user").toLowerCase();
-    const access = (matchedUser[8] || "").toLowerCase();
+    const roleFromSheet = (matchedUser[3] || "")
+    .toString()
+    .trim()
+    .toLowerCase();
+    
+    const access = (matchedUser[9] || "")
+    .toString()
+    .trim()
+    .toLowerCase();
 
     if (access !== "active") {
       console.warn(`⏳ Access not approved for: ${userEmail}`);
