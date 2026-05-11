@@ -1,212 +1,470 @@
-import { useState } from "react";
-import { X } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import {
+  useEffect,
+} from "react";
 
-interface Props {
-  member: any;
-  onClose: () => void;
-  onUpdated: () => void;
-}
+import {
+  useForm,
+} from "react-hook-form";
 
-export default function EditProfileModal({
-  member,
-  onClose,
-  onUpdated,
-}: Props) {
-  const { toast } = useToast();
+import {
+  zodResolver,
+} from "@hookform/resolvers/zod";
 
-  const [loading, setLoading] = useState(false);
+import {
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 
-  const [form, setForm] = useState({
-    username: member.username || "",
-    phone: member.phone || "",
-    age: member.age || "",
-    position: member.position || "",
-    location: member.location || "",
-    bio: member.bio || "",
+import {
+  Card,
+  CardContent,
+} from "@/components/ui/card";
+
+import {
+  Button,
+} from "@/components/ui/button";
+
+import {
+  Input,
+} from "@/components/ui/input";
+
+import {
+  Textarea,
+} from "@/components/ui/textarea";
+
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+
+import {
+  useToast,
+} from "@/hooks/use-toast";
+
+import {
+  apiRequest,
+} from "@/lib/queryClient";
+
+import {
+  z,
+} from "zod";
+
+// =====================================
+// SCHEMA
+// =====================================
+const editUserSchema =
+  z.object({
+    username:
+      z
+        .string()
+        .min(
+          1,
+          "Username is required"
+        ),
+
+    phone:
+      z
+        .string()
+        .min(
+          10,
+          "Phone number is required"
+        ),
+
+    age:
+      z.coerce
+        .number({
+          required_error:
+            "Age is required",
+        })
+        .min(
+          1,
+          "Minimum age is 1"
+        )
+        .max(
+          120,
+          "Maximum age is 120"
+        ),
+
+    position:
+      z.string().optional(),
+
+    location:
+      z
+        .string()
+        .min(
+          1,
+          "Location is required"
+        ),
+
+    bio:
+      z
+        .string()
+        .min(
+          10,
+          "Bio must be at least 10 characters"
+        )
+        .max(
+          300,
+          "Bio must be under 300 characters"
+        ),
   });
 
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
-  ) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
-    });
-  };
+type EditUserForm =
+  z.infer<
+    typeof editUserSchema
+  >;
 
-  const handleSubmit = async () => {
-    try {
-      setLoading(true);
+export default function EditUserModal({
+  user,
+  onClose,
+}: {
+  user: any;
+  onClose: () => void;
+}) {
+  const { toast } =
+    useToast();
 
-      const response = await fetch(
-        `/api/users?id=${member.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
+  const queryClient =
+    useQueryClient();
+
+  // =====================================
+  // FORM
+  // =====================================
+  const form =
+    useForm<EditUserForm>(
+      {
+        resolver:
+          zodResolver(
+            editUserSchema
+          ),
+
+        defaultValues:
+          {
+            username:
+              "",
+
+            phone:
+              "",
+
+            age:
+              undefined,
+
+            location:
+              "",
+
+            bio:
+              "",
           },
-          body: JSON.stringify(form),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Failed to update profile");
       }
+    );
 
-      toast({
-        title: "Success",
-        description: "Profile updated successfully",
-      });
+  // =====================================
+  // LOAD EXISTING VALUES
+  // =====================================
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        username:
+          user?.username ||
+          "",
 
-      onUpdated();
-      onClose();
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
+        phone:
+          user?.phone ||
+          "",
+
+        age:
+          user?.age
+            ? Number(
+                user.age
+              )
+            : undefined,
+
+        location:
+          user?.location ||
+          "",
+
+        bio:
+          user?.bio ||
+          "",
       });
-    } finally {
-      setLoading(false);
     }
+  }, [user, form]);
+
+  // =====================================
+  // UPDATE USER
+  // =====================================
+  const updateMutation =
+    useMutation({
+      mutationFn: (
+        data: EditUserForm
+      ) =>
+        apiRequest(
+          "PUT",
+          `/api/users?id=${user.id}`,
+          data
+        ),
+
+      onSuccess:
+        async () => {
+          await queryClient.invalidateQueries(
+            {
+              queryKey: [
+                "users",
+              ],
+
+              exact:
+                false,
+            }
+          );
+
+          toast({
+            title:
+              "Success",
+
+            description:
+              "User updated successfully",
+          });
+
+          onClose();
+        },
+
+      onError: (
+        error: any
+      ) => {
+        toast({
+          title:
+            "Error",
+
+          description:
+            error.message ||
+            "Failed to update user",
+
+          variant:
+            "destructive",
+        });
+      },
+    });
+
+  // =====================================
+  // SUBMIT
+  // =====================================
+  const onSubmit = (
+    data: EditUserForm
+  ) => {
+    updateMutation.mutate(
+      data
+    );
   };
 
   return (
-    <div className="fixed inset-0 z-[120] bg-black/50 flex items-center justify-center p-4">
-      <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 p-2 rounded-full hover:bg-gray-100 transition"
-        >
-          <X className="w-5 h-5" />
-        </button>
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+      <Card className="max-w-2xl w-full rounded-3xl shadow-2xl">
+        <CardContent className="p-8">
+          {/* HEADER */}
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold">
+              Edit User
+            </h2>
 
-        <div className="p-8">
-          <h2 className="text-3xl font-bold text-gray-900">
-            Edit Profile
-          </h2>
-
-          <p className="text-gray-500 mt-2">
-            Update your community profile information
-          </p>
-
-          <div className="mt-8 space-y-5">
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Username
-              </label>
-
-              <input
-                type="text"
-                name="username"
-                value={form.username}
-                onChange={handleChange}
-                className="mt-2 w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-                placeholder="Enter username"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Email
-              </label>
-
-              <input
-                type="text"
-                value={member.email}
-                disabled
-                className="mt-2 w-full border rounded-2xl px-4 py-3 bg-gray-100 text-gray-500"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Phone
-              </label>
-
-              <input
-                type="text"
-                name="phone"
-                value={form.phone}
-                onChange={handleChange}
-                className="mt-2 w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-                placeholder="Enter phone number"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Age
-              </label>
-
-              <input
-                type="number"
-                name="age"
-                value={form.age}
-                onChange={handleChange}
-                className="mt-2 w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-                placeholder="Enter age"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Position
-              </label>
-
-              <input
-                type="text"
-                name="position"
-                value={form.position}
-                onChange={handleChange}
-                className="mt-2 w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-                placeholder="Enter position"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Location
-              </label>
-
-              <input
-                type="text"
-                name="location"
-                value={form.location}
-                onChange={handleChange}
-                className="mt-2 w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-                placeholder="Enter location"
-              />
-            </div>
-
-            <div>
-              <label className="text-sm font-medium text-gray-700">
-                Bio
-              </label>
-
-              <textarea
-                rows={4}
-                name="bio"
-                value={form.bio}
-                onChange={handleChange}
-                className="mt-2 w-full border rounded-2xl px-4 py-3 outline-none focus:ring-2 focus:ring-black resize-none"
-                placeholder="Tell something about yourself"
-              />
-            </div>
-
-            <button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="w-full bg-black text-white py-3 rounded-2xl font-semibold hover:opacity-90 transition disabled:opacity-50"
+            <Button
+              variant="ghost"
+              onClick={
+                onClose
+              }
             >
-              {loading ? "Updating..." : "Update Profile"}
-            </button>
+              Close
+            </Button>
           </div>
-        </div>
-      </div>
+
+          {/* FORM */}
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(
+                onSubmit
+              )}
+              className="space-y-5"
+            >
+              {/* USERNAME */}
+              <FormField
+                control={
+                  form.control
+                }
+                name="username"
+                render={({
+                  field,
+                }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Username
+                    </FormLabel>
+
+                    <FormControl>
+                      <Input
+                        placeholder="Enter username"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* PHONE */}
+              <FormField
+                control={
+                  form.control
+                }
+                name="phone"
+                render={({
+                  field,
+                }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Phone
+                    </FormLabel>
+
+                    <FormControl>
+                      <Input
+                        type="tel"
+                        maxLength={
+                          10
+                        }
+                        placeholder="Enter phone number"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* AGE */}
+              <FormField
+                control={
+                  form.control
+                }
+                name="age"
+                render={({
+                  field,
+                }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Age
+                    </FormLabel>
+
+                    <FormControl>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={120}
+                        placeholder="Enter age"
+                        value={
+                          field.value ??
+                          ""
+                        }
+                        onChange={(
+                          e
+                        ) => {
+                          const value =
+                            e
+                              .target
+                              .value;
+
+                          field.onChange(
+                            value ===
+                              ""
+                              ? undefined
+                              : Number(
+                                  value
+                                )
+                          );
+                        }}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* LOCATION */}
+              <FormField
+                control={
+                  form.control
+                }
+                name="location"
+                render={({
+                  field,
+                }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Location
+                    </FormLabel>
+
+                    <FormControl>
+                      <Input
+                        placeholder="Enter location"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* BIO */}
+              <FormField
+                control={
+                  form.control
+                }
+                name="bio"
+                render={({
+                  field,
+                }) => (
+                  <FormItem>
+                    <FormLabel>
+                      Bio
+                    </FormLabel>
+
+                    <FormControl>
+                      <Textarea
+                        rows={4}
+                        maxLength={
+                          300
+                        }
+                        placeholder="Tell something about yourself"
+                        {...field}
+                      />
+                    </FormControl>
+
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              {/* SUBMIT */}
+              <Button
+                type="submit"
+                disabled={
+                  updateMutation.isPending
+                }
+                className="w-full bg-black text-white py-3 hover:bg-gray-800"
+              >
+                {updateMutation.isPending
+                  ? "Updating..."
+                  : "Update User"}
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

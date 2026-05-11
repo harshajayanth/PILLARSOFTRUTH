@@ -1,6 +1,6 @@
 import nodemailer from "nodemailer";
 
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
+export const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "";
 const GMAIL_PASS_KEY= process.env.GMAIL_PASSKEY || "";
 
 export const transporter = nodemailer.createTransport({

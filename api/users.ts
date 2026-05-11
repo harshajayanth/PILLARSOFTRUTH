@@ -74,7 +74,7 @@ export default async function handler(
           );
 
         // FILTER ACTIVE USERS
-        if (active === "true") {
+        if (active === "active") {
           users = users.filter(
             (user: any) =>
               user.access
@@ -109,10 +109,10 @@ export default async function handler(
             (r) => r[idIndex] === id
           );
 
-        console.log(
-          "FOUND ROW INDEX:",
-          rowIndex
-        );
+        // console.log(
+        //   "FOUND ROW INDEX:",
+        //   rowIndex
+        // );
 
         if (rowIndex === -1) {
           return res.status(404).json({
@@ -134,48 +134,55 @@ export default async function handler(
 
         const body = req.body;
 
-        console.log(
-          "REQUEST BODY:",
-          body
-        );
+        // console.log(
+        //   "REQUEST BODY:",
+        //   body
+        // );
 
         // FINAL UPDATED ROW
         const updatedRow = [
-          existingUser.id,
+            existingUser.id,
 
-          body.username ??
-            existingUser.username,
+            body.username ??
+              existingUser.username,
 
-          existingUser.email,
+            existingUser.email,
 
-          existingUser.role,
+            body.role ??
+              existingUser.role,
 
-          body.phone ??
-            existingUser.phone,
+            body.phone ??
+              existingUser.phone,
 
-          body.location ??
-            existingUser.location,
+            body.location ??
+              existingUser.location,
 
-          body.age ??
-            existingUser.age,
+            body.age ??
+              existingUser.age,
 
-          existingUser.source,
+            existingUser.source,
 
-          body.bio ??
-            existingUser.bio,
+            body.bio ??
+              existingUser.bio,
 
-          existingUser.access,
+            body.access ??
+              existingUser.access,
 
-          body.position ??
-            existingUser.position,
+            body.position ??
+              existingUser.position,
 
-          existingUser.youth_leader,
-        ];
+            body.youth_leader !==
+            undefined
+              ? String(
+                  body.youth_leader
+                )
+              : existingUser.youth_leader,
+          ];
 
-        console.log(
-          "UPDATED ROW:",
-          updatedRow
-        );
+        // console.log(
+        //   "UPDATED ROW:",
+        //   updatedRow
+        // );
 
         // UPDATE GOOGLE SHEET
         await sheets.spreadsheets.values.update(

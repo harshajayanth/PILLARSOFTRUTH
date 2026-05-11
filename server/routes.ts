@@ -142,10 +142,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .trim()
         .toLowerCase();
 
-      console.log("=================================");
-      console.log("LOGIN EMAIL:", userEmail);
-      console.log("=================================");
-
       if (!userEmail) {
         return res.redirect(
           "/?auth=error&reason=missing_email"
@@ -168,17 +164,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const rows = sheetData.data.values || [];
 
-      console.log("TOTAL ROWS:", rows.length);
+      // console.log("TOTAL ROWS:", rows.length);
 
       // =========================================
       // DEBUG ALL EMAILS
-      // =========================================
-      rows.forEach((row, index) => {
-        console.log(
-          `ROW ${index + 2}:`,
-          row[2]
-        );
-      });
+      // // =========================================
+      // rows.forEach((row, index) => {
+      //   console.log(
+      //     `ROW ${index + 2}:`,
+      //     row[2]
+      //   );
+      // });
 
       // =========================================
       // FIND USER
@@ -192,15 +188,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return sheetEmail === userEmail;
       });
 
-      console.log("MATCHED USER:", matchedUser);
+      // console.log("MATCHED USER:", matchedUser);
 
       // =========================================
       // USER NOT FOUND
       // =========================================
       if (!matchedUser) {
-        console.warn(
-          `❌ User not found: ${userEmail}`
-        );
+        // console.warn(
+        //   `❌ User not found: ${userEmail}`
+        // );
 
         return res.redirect(
           "/?auth=denied&reason=user_not_found"
@@ -224,16 +220,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .trim()
         .toLowerCase();
 
-      console.log("ROLE:", roleFromSheet);
-      console.log("ACCESS:", access);
+      // console.log("ROLE:", roleFromSheet);
+      // console.log("ACCESS:", access);
 
       // =========================================
       // ACCESS CHECK
       // =========================================
       if (access !== "active") {
-        console.warn(
-          `⏳ Access not approved for: ${userEmail}`
-        );
+        // console.warn(
+        //   `⏳ Access not approved for: ${userEmail}`
+        // );
 
         return res.redirect(
           "/?auth=pending&reason=inactive_access"
@@ -279,7 +275,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       );
 
-      console.log("✅ LOGIN SUCCESS");
+      // console.log("✅ LOGIN SUCCESS");
 
       // =========================================
       // SUCCESS
@@ -383,103 +379,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
   //  Get all users
   app.get("/api/users", async (req, res) => {
     try {
-      const sheets = google.sheets({ version: "v4", auth });
-      const result = await sheets.spreadsheets.values.get({
-        spreadsheetId: GOOGLE_USERS,
-        range: `Sheet1!A1:L`, // adjust columns
-      });
+      const { active } =
+        req.query;
 
-      const rows = result.data.values || [];
-      if (rows.length === 0) return res.json([]);
+      const sheets =
+        google.sheets({
+          version: "v4",
+          auth,
+        });
 
-      const headers = rows[0];
-      const users = rows
-        .slice(1)
-        .map((row) =>
-          Object.fromEntries(headers.map((key, i) => [key, row[i] || ""]))
+      const result =
+        await sheets.spreadsheets.values.get(
+          {
+            spreadsheetId:
+              GOOGLE_USERS,
+
+            range:
+              `Sheet1!A1:L`,
+          }
         );
 
-      res.json(users);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: err });
-    }
-  });
+      const rows =
+        result.data.values ||
+        [];
 
-  //Update User
-  app.put(
-    "/api/users/:id",
-    async (req, res) => {
-      try {
-        const { id } =
-          req.params;
+      if (
+        rows.length === 0
+      ) {
+        return res.json(
+          []
+        );
+      }
 
-        const sheets =
-          google.sheets({
-            version: "v4",
-            auth,
-          });
+      const headers =
+        rows[0];
 
-        // FETCH SHEET
-        const result =
-          await sheets.spreadsheets.values.get(
-            {
-              spreadsheetId:
-                GOOGLE_USERS,
-
-              range:
-                "Sheet1!A1:L",
-            }
-          );
-
-        const rows =
-          result.data.values ||
-          [];
-
-        const headers =
-          rows[0];
-
-        const idIndex =
-          headers.indexOf(
-            "id"
-          );
-
-        if (
-          idIndex === -1
-        ) {
-          return res
-            .status(500)
-            .json({
-              error:
-                "No id column found",
-            });
-        }
-
-        // FIND USER ROW
-        const rowIndex =
-          rows.findIndex(
-            (r) =>
-              r[
-                idIndex
-              ] === id
-          );
-
-        if (
-          rowIndex === -1
-        ) {
-          return res
-            .status(404)
-            .json({
-              error:
-                "User not found",
-            });
-        }
-
-        // EXISTING ROW
-        const existingRow =
-          rows[rowIndex];
-
-        const existingUser =
+      let users = rows
+        .slice(1)
+        .map((row) =>
           Object.fromEntries(
             headers.map(
               (
@@ -487,19 +424,171 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 i
               ) => [
                 key,
-                existingRow[
-                  i
-                ] || "",
+                row[i] ||
+                  "",
               ]
             )
+          )
+        );
+
+      // =====================================
+      // FILTER ACTIVE USERS
+      // =====================================
+      if (
+        active ===
+        "active"
+      ) {
+        users =
+          users.filter(
+            (
+              user: any
+            ) =>
+              user.access
+                ?.toString()
+                .trim()
+                .toLowerCase() ===
+              "active"
           );
+      }
 
-        const body =
-          req.body;
+      res.json(users);
+    } catch (err) {
+      console.error(
+        err
+      );
 
-        // FINAL UPDATED ROW
-        const updatedRow =
-          [
+      res.status(500).json({
+        error: err,
+      });
+    }
+  });
+
+  //Update User
+  app.put(
+      "/api/users",
+      async (req, res) => {
+        try {
+          const { id } =
+            req.query;
+
+          const sheets =
+            google.sheets({
+              version: "v4",
+              auth,
+            });
+
+          // =====================================
+          // FETCH SHEET DATA
+          // =====================================
+          const result =
+            await sheets.spreadsheets.values.get(
+              {
+                spreadsheetId:
+                  GOOGLE_USERS,
+
+                range:
+                  "Sheet1!A1:L",
+              }
+            );
+
+          const rows =
+            result.data.values ||
+            [];
+
+          if (
+            rows.length === 0
+          ) {
+            return res
+              .status(404)
+              .json({
+                error:
+                  "No users found",
+              });
+          }
+
+          const headers =
+            rows[0];
+
+          const idIndex =
+            headers.indexOf(
+              "id"
+            );
+
+          if (
+            idIndex === -1
+          ) {
+            return res
+              .status(500)
+              .json({
+                error:
+                  "No id column found",
+              });
+          }
+
+          // =====================================
+          // FIND USER ROW
+          // =====================================
+          const rowIndex =
+            rows.findIndex(
+              (
+                row,
+                index
+              ) =>
+                index > 0 &&
+                row[
+                  idIndex
+                ] === id
+            );
+
+          if (
+            rowIndex === -1
+          ) {
+            return res
+              .status(404)
+              .json({
+                error:
+                  "User not found",
+              });
+          }
+
+          // =====================================
+          // EXISTING USER
+          // =====================================
+          const existingRow =
+            rows[rowIndex];
+
+          const existingUser =
+            Object.fromEntries(
+              headers.map(
+                (
+                  key,
+                  i
+                ) => [
+                  key,
+                  existingRow[
+                    i
+                  ] || "",
+                ]
+              )
+            );
+
+          // console.log(
+          //   "EXISTING USER:",
+          //   existingUser
+          // );
+
+          // console.log(
+          //   "BODY:",
+          //   req.body
+          // );
+
+          const body =
+            req.body;
+
+          // =====================================
+          // UPDATED ROW
+          // =====================================
+          const updatedRow = [
             existingUser.id,
 
             body.username ??
@@ -507,7 +596,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
             existingUser.email,
 
-            existingUser.role,
+            body.role ??
+              existingUser.role,
 
             body.phone ??
               existingUser.phone,
@@ -523,69 +613,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
             body.bio ??
               existingUser.bio,
 
-            existingUser.access,
+            body.access ??
+              existingUser.access,
 
             body.position ??
               existingUser.position,
 
-            existingUser.youth_leader,
+            body.youth_leader !==
+            undefined
+              ? String(
+                  body.youth_leader
+                )
+              : existingUser.youth_leader,
           ];
 
-        console.log(
-          "UPDATED ROW:",
-          updatedRow
-        );
+          // console.log(
+          //   "UPDATED ROW:",
+          //   updatedRow
+          // );
 
-        // UPDATE SHEET
-        await sheets.spreadsheets.values.update(
-          {
-            spreadsheetId:
-              GOOGLE_USERS,
+          // =====================================
+          // UPDATE SHEET
+          // =====================================
+          await sheets.spreadsheets.values.update(
+            {
+              spreadsheetId:
+                GOOGLE_USERS,
 
-            range: `Sheet1!A${
-              rowIndex + 1
-            }:L${
-              rowIndex + 1
-            }`,
+              range: `Sheet1!A${
+                rowIndex + 1
+              }:L${
+                rowIndex + 1
+              }`,
 
-            valueInputOption:
-              "RAW",
+              valueInputOption:
+                "RAW",
 
-            requestBody: {
-              values: [
-                updatedRow,
-              ],
-            },
-          }
-        );
+              requestBody: {
+                values: [
+                  updatedRow,
+                ],
+              },
+            }
+          );
 
-        return res
-          .status(200)
-          .json({
-            success: true,
-            message:
-              "User updated successfully",
-          });
-      } catch (err) {
-        console.error(
-          "Error updating user:",
-          err
-        );
+          return res
+            .status(200)
+            .json({
+              success: true,
+              message:
+                "User updated successfully",
+            });
+        } catch (err) {
+          console.error(
+            "Error updating user:",
+            err
+          );
 
-        return res
-          .status(500)
-          .json({
-            error:
-              "Internal server error",
-          });
+          return res
+            .status(500)
+            .json({
+              error:
+                "Internal server error",
+            });
+        }
       }
-    }
-  );
+    );
 
   //Delete User
-  app.delete("/api/users/:id", async (req, res) => {
+  app.delete("/api/users", async (req, res) => {
     try {
-      const { id } = req.params;
+      const { id } = req.query;
 
       const sheets = google.sheets({ version: "v4", auth });
 
@@ -656,7 +754,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
 
       const rows = existingData.data.values || [];
-      console.log(rows);
+      // console.log(rows);
       const existingEmails = rows
         .map((row: any) => row[2]) // column C = email
         .filter((email: string | undefined) => email && email !== "email")
@@ -742,48 +840,337 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 
   // --- CHAT MESSAGE ---
-  app.post("/api/chat", async (req: Request, res: Response) => {
-    try {
-      const validation = chatMessageSchema.safeParse(req.body);
-      if (!validation.success) {
-        return res.status(400).json({
-          message: "Invalid message data",
-          errors: validation.error.errors,
+  app.post(
+    "/api/chat",
+    async (
+      req: Request,
+      res: Response
+    ) => {
+      try {
+        // VALIDATE
+        const validation =
+          chatMessageSchema.safeParse(
+            req.body
+          );
+
+        if (
+          !validation.success
+        ) {
+          return res
+            .status(400)
+            .json({
+              message:
+                "Invalid message data",
+
+              errors:
+                validation.error
+                  .errors,
+            });
+        }
+
+        const {
+          message,
+          route,
+          senderEmail,
+        } = validation.data;
+
+        // =====================================
+        // FETCH USERS
+        // =====================================
+        const sheets =
+          google.sheets({
+            version: "v4",
+            auth,
+          });
+
+        const result =
+          await sheets.spreadsheets.values.get(
+            {
+              spreadsheetId:
+                GOOGLE_USERS,
+
+              range:
+                "Sheet1!A1:L",
+            }
+          );
+
+        const rows =
+          result.data.values ||
+          [];
+
+        if (
+          rows.length === 0
+        ) {
+          return res
+            .status(404)
+            .json({
+              message:
+                "No users found",
+            });
+        }
+
+        const headers =
+          rows[0];
+
+        const users = rows
+          .slice(1)
+          .map((row) =>
+            Object.fromEntries(
+              headers.map(
+                (
+                  key,
+                  i
+                ) => [
+                  key,
+                  row[i] ||
+                    "",
+                ]
+              )
+            )
+          );
+
+        // =====================================
+        // FILTER RECIPIENTS
+        // =====================================
+        let recipients: string[] =
+          [];
+
+        if (
+          route === "admin"
+        ) {
+          recipients =
+            users
+              .filter(
+                (
+                  user: any
+                ) =>
+                  user.role
+                    ?.toString()
+                    .trim()
+                    .toLowerCase() ===
+                  "admin"
+              )
+              .map(
+                (
+                  user: any
+                ) =>
+                  user.email
+              );
+        }
+
+        else if (
+          route ===
+          "members"
+        ) {
+          recipients =
+            users
+              .filter(
+                (
+                  user: any
+                ) =>
+                  user.access
+                    ?.toString()
+                    .trim()
+                    .toLowerCase() ===
+                  "active"
+              )
+              .map(
+                (
+                  user: any
+                ) =>
+                  user.email
+              );
+        }
+
+        else if (
+          route ===
+          "youth_leaders"
+        ) {
+          recipients =
+            users
+              .filter(
+                (
+                  user: any
+                ) =>
+                  user.youth_leader
+                    ?.toString()
+                    .trim()
+                    .toLowerCase() ===
+                  "true"
+              )
+              .map(
+                (
+                  user: any
+                ) =>
+                  user.email
+              );
+        }
+
+        else if (
+          route ===
+          "organisation"
+        ) {
+          recipients =
+            users
+              .filter(
+                (
+                  user: any
+                ) =>
+                  user.position
+                    ?.toString()
+                    .toLowerCase()
+                    .includes(
+                      "organisation"
+                    )
+              )
+              .map(
+                (
+                  user: any
+                ) =>
+                  user.email
+              );
+        }
+
+        else if (
+          route ===
+          "communication"
+        ) {
+          recipients =
+            users
+              .filter(
+                (
+                  user: any
+                ) =>
+                  user.position
+                    ?.toString()
+                    .toLowerCase()
+                    .includes(
+                      "communication"
+                    )
+              )
+              .map(
+                (
+                  user: any
+                ) =>
+                  user.email
+              );
+        }
+
+        // REMOVE EMPTY
+        recipients =
+          recipients.filter(
+            Boolean
+          );
+
+        // REMOVE DUPLICATES
+        recipients =
+          Array.from(
+            new Set(
+              recipients
+            )
+          );
+
+        if (
+          recipients.length ===
+          0
+        ) {
+          return res
+            .status(404)
+            .json({
+              message:
+                "No recipients found",
+            });
+        }
+
+        // =====================================
+        // SEND EMAIL
+        // =====================================
+        const mailOptions: any =
+          {
+            // SMTP SAFE
+            from: `"${senderEmail}" <${ADMIN_EMAIL}>`,
+
+            // REPLY GOES TO USER
+            replyTo:
+              senderEmail,
+
+            // RECIPIENTS
+            to: recipients,
+
+            // ALWAYS SEND COPY TO ADMINS
+            cc: ADMIN_EMAIL,
+
+            subject: `New Community Chat Message - ${route}`,
+
+            html: `
+              <h2>
+                New Community Chat Message
+              </h2>
+
+              <p>
+                <strong>
+                  From:
+                </strong>
+                ${senderEmail}
+              </p>
+
+              <p>
+                <strong>
+                  Route:
+                </strong>
+                ${route}
+              </p>
+
+              <p>
+                <strong>
+                  Message:
+                </strong>
+              </p>
+
+              <div
+                style="
+                  background: #f5f5f5;
+                  padding: 15px;
+                  border-radius: 5px;
+                  margin: 10px 0;
+                "
+              >
+                ${message}
+              </div>
+
+              <p>
+                <em>
+                  Replying to this email
+                  will directly reply to:
+                  ${senderEmail}
+                </em>
+              </p>
+            `,
+          };
+
+        await transporter.sendMail(
+          mailOptions
+        );
+
+        res.json({
+          success: true,
+
+          message:
+            "Message sent successfully",
+        });
+      } catch (error) {
+        console.error(
+          "Chat message error:",
+          error
+        );
+
+        res.status(500).json({
+          message:
+            "Failed to send message",
         });
       }
-
-      const { message, route } = validation.data;
-
-      const mailOptions: any = {
-        from: ADMIN_EMAIL,
-        subject: `New Message from Community Chat - ${
-          route === "admin" ? "Admin" : "Members"
-        }`,
-        html: `
-          <h2>New Community Chat Message</h2>
-          <p><strong>Message:</strong></p>
-          <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
-            ${message}
-          </div>
-          <p><em>This message was sent through the community website chat widget.</em></p>
-        `,
-      };
-
-      if (route === "admin") {
-        mailOptions.to = ADMIN_EMAIL;
-      } else {
-        mailOptions.to = ADMIN_EMAIL;
-        mailOptions.cc = MEMBER_EMAIL;
-      }
-
-      await transporter.sendMail(mailOptions);
-
-      res.json({ success: true, message: "Message sent successfully" });
-    } catch (error) {
-      console.error("Chat message error:", error);
-      res.status(500).json({ message: "Failed to send message" });
     }
-  });
+  );
 
   //Announcements
   app.get("/api/announcements", async (req, res) => {

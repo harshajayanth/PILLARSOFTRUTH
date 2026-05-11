@@ -7,7 +7,7 @@ export default function DeleteUserModal({ user, onClose }: { user: any; onClose:
   const queryClient = useQueryClient();
 
   const deleteMutation = useMutation({
-    mutationFn: () => apiRequest("DELETE", `/api/users?id=${user.id}`),
+    mutationFn: () => apiRequest("DELETE", `/api/users/${user.id}`),
     onSuccess: async() => {
       await queryClient.invalidateQueries({ queryKey: ["users"],exact:false });
       onClose();
