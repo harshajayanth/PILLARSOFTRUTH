@@ -12,8 +12,16 @@ type Person = {
 };
 
 const people = [
-  {
+    {
     id: "1",
+    name: "Harsha Jayanth M",
+    role: "Founder & President",
+    image: "/images/bobby.jpeg",
+    email: "harshajayanth437@gmail.com",
+    bio: "Church Of Christ, Hyderabad",
+  },
+  {
+    id: "2",
     name: "Bobby Albert M",
     role: "Preacher",
     image: "/images/bobby.jpeg",
@@ -21,7 +29,7 @@ const people = [
     bio: "Church Of Christ, Kakinada",
   },
   {
-    id: "2",
+    id: "3",
     name: "Sukesh Raja M",
     role: "Preacher",
     image: "/images/sukesh.png",
@@ -29,7 +37,7 @@ const people = [
     bio: "Church Of Christ, Ramachandrapuram",
   },
   {
-    id: "3",
+    id: "4",
     name: "Raja S",
     role: "Youth Minister",
     image: "/images/raja.png",
