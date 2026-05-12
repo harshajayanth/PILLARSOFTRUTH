@@ -16,7 +16,7 @@ const people = [
     id: "1",
     name: "Harsha Jayanth M",
     role: "Founder & President",
-    image: "/images/bobby.jpeg",
+    image: "/images/Harsha.png",
     email: "harshajayanth437@gmail.com",
     bio: "Church Of Christ, Hyderabad",
   },
