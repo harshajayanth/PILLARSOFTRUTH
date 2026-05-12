@@ -70,6 +70,11 @@ const POSITIONS = [
   "Volunteer",
   "Coordinator",
   "Member",
+  "ADMIN",
+  "Administration",
+  "Preacher",
+  "Youth Minister",
+  "President"
 ];
 
 // =====================================

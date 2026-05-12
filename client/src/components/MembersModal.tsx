@@ -140,8 +140,9 @@ export default function MembersModal({
   // FILTER MEMBERS
   // =====================================
   const filteredMembers =
-    useMemo(() => {
-      return members.filter(
+  useMemo(() => {
+    const filtered =
+      members.filter(
         (
           member
         ) => {
@@ -216,14 +217,128 @@ export default function MembersModal({
           return true;
         }
       );
-    }, [
-      members,
-      searchQuery,
-      roleFilter,
-      positionFilter,
-      locationFilter,
-      youthLeaderOnly,
-    ]);
+
+    // =====================================
+    // SORT MEMBERS
+    // PRIORITY:
+    // 1. YOU
+    // 2. PRESIDENT
+    // 3. YOUTH MINISTER
+    // 4. OTHERS
+    // =====================================
+
+    return filtered.sort(
+      (
+        a,
+        b
+      ) => {
+        const isYouA =
+          a.email
+            ?.toString()
+            .trim()
+            .toLowerCase() ===
+          user?.email
+            ?.toString()
+            .trim()
+            .toLowerCase();
+
+        const isYouB =
+          b.email
+            ?.toString()
+            .trim()
+            .toLowerCase() ===
+          user?.email
+            ?.toString()
+            .trim()
+            .toLowerCase();
+
+        // YOU FIRST
+        if (
+          isYouA &&
+          !isYouB
+        )
+          return -1;
+
+        if (
+          !isYouA &&
+          isYouB
+        )
+          return 1;
+
+        const positionsA =
+          a.position
+            ?.toLowerCase() ||
+          "";
+
+        const positionsB =
+          b.position
+            ?.toLowerCase() ||
+          "";
+
+        const isPresidentA =
+          positionsA.includes(
+            "president"
+          );
+
+        const isPresidentB =
+          positionsB.includes(
+            "president"
+          );
+
+        // PRESIDENT SECOND
+        if (
+          isPresidentA &&
+          !isPresidentB
+        )
+          return -1;
+
+        if (
+          !isPresidentA &&
+          isPresidentB
+        )
+          return 1;
+
+        const isYouthMinisterA =
+          positionsA.includes(
+            "youth minister"
+          );
+
+        const isYouthMinisterB =
+          positionsB.includes(
+            "youth minister"
+          );
+
+        // YOUTH MINISTER THIRD
+        if (
+          isYouthMinisterA &&
+          !isYouthMinisterB
+        )
+          return -1;
+
+        if (
+          !isYouthMinisterA &&
+          isYouthMinisterB
+        )
+          return 1;
+
+        // OPTIONAL:
+        // SORT REMAINING BY NAME
+        return (
+          a.username || ""
+        ).localeCompare(
+          b.username || ""
+        );
+      }
+    );
+  }, [
+    members,
+    searchQuery,
+    roleFilter,
+    positionFilter,
+    locationFilter,
+    youthLeaderOnly,
+    user,
+  ]);
 
   // =====================================
   // FILTER OPTIONS
@@ -240,6 +355,11 @@ export default function MembersModal({
       "Member",
       "Volunteer",
       "Coordinator",
+      "ADMIN",
+      "Administration",
+      "Preacher",
+      "Youth Minister",
+      "President"
     ];
 
   const uniqueLocations =
