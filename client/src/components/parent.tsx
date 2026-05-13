@@ -38,6 +38,14 @@ const people = [
   },
   {
     id: "4",
+    name: "Helen Mulaparthi",
+    role: "Women Bible Preacher",
+    image: "",
+    email: "sunny.coc94@gmail.com",
+    bio: "Church Of Christ, Visakhapatnam",
+  },
+  {
+    id: "5",
     name: "Raja S",
     role: "Youth Minister",
     image: "/images/raja.png",
