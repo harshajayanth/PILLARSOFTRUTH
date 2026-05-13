@@ -73,14 +73,14 @@ export default function Navigation({
           <div className="flex items-center space-x-4">
             {user?.isAuthenticated ? (
               <>
-                <Button
+                {/* <Button
                   onClick={onOpenDonateModal}
                   className="bg-green-800 text-white rounded-full px-6 py-2 
              hover:bg-green-700 transition 
              ring-2 ring-green-600 ring-offset-2"
                 >
                   Donate
-                </Button>
+                </Button> */}
 
                 <button
                   onClick={onOpenProfileModal}

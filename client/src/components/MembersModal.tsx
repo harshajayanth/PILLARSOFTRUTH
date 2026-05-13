@@ -136,6 +136,80 @@ export default function MembersModal({
           .toLowerCase()
     );
 
+  const getMemberPriority =
+    (
+      member: any
+    ) => {
+      const memberEmail =
+        member.email
+          ?.toString()
+          .trim()
+          .toLowerCase();
+
+      const currentUserEmail =
+        user?.email
+          ?.toString()
+          .trim()
+          .toLowerCase();
+
+      if (
+        memberEmail &&
+        currentUserEmail &&
+        memberEmail ===
+          currentUserEmail
+      ) {
+        return 0;
+      }
+
+      const position =
+        member.position
+          ?.toString()
+          .toLowerCase() ||
+        "";
+
+      const role =
+        member.role
+          ?.toString()
+          .toLowerCase() ||
+        "";
+
+      if (
+        position.includes(
+          "president"
+        )
+      ) {
+        return 1;
+      }
+
+      if (
+        position.includes(
+          "youth minister"
+        ) ||
+        position.includes(
+          "youthminister"
+        )
+      ) {
+        return 2;
+      }
+
+      if (
+        position.includes(
+          "preacher"
+        )
+      ) {
+        return 3;
+      }
+
+      if (
+        role ===
+        "admin"
+      ) {
+        return 4;
+      }
+
+      return 5;
+    };
+
   // =====================================
   // FILTER MEMBERS
   // =====================================
@@ -218,111 +292,31 @@ export default function MembersModal({
         }
       );
 
-    // =====================================
-    // SORT MEMBERS
-    // PRIORITY:
-    // 1. YOU
-    // 2. PRESIDENT
-    // 3. YOUTH MINISTER
-    // 4. OTHERS
-    // =====================================
-
     return filtered.sort(
       (
         a,
         b
       ) => {
-        const isYouA =
-          a.email
-            ?.toString()
-            .trim()
-            .toLowerCase() ===
-          user?.email
-            ?.toString()
-            .trim()
-            .toLowerCase();
-
-        const isYouB =
-          b.email
-            ?.toString()
-            .trim()
-            .toLowerCase() ===
-          user?.email
-            ?.toString()
-            .trim()
-            .toLowerCase();
-
-        // YOU FIRST
-        if (
-          isYouA &&
-          !isYouB
-        )
-          return -1;
-
-        if (
-          !isYouA &&
-          isYouB
-        )
-          return 1;
-
-        const positionsA =
-          a.position
-            ?.toLowerCase() ||
-          "";
-
-        const positionsB =
-          b.position
-            ?.toLowerCase() ||
-          "";
-
-        const isPresidentA =
-          positionsA.includes(
-            "president"
+        const priorityA =
+          getMemberPriority(
+            a
           );
 
-        const isPresidentB =
-          positionsB.includes(
-            "president"
+        const priorityB =
+          getMemberPriority(
+            b
           );
 
-        // PRESIDENT SECOND
         if (
-          isPresidentA &&
-          !isPresidentB
-        )
-          return -1;
-
-        if (
-          !isPresidentA &&
-          isPresidentB
-        )
-          return 1;
-
-        const isYouthMinisterA =
-          positionsA.includes(
-            "youth minister"
+          priorityA !==
+          priorityB
+        ) {
+          return (
+            priorityA -
+            priorityB
           );
+        }
 
-        const isYouthMinisterB =
-          positionsB.includes(
-            "youth minister"
-          );
-
-        // YOUTH MINISTER THIRD
-        if (
-          isYouthMinisterA &&
-          !isYouthMinisterB
-        )
-          return -1;
-
-        if (
-          !isYouthMinisterA &&
-          isYouthMinisterB
-        )
-          return 1;
-
-        // OPTIONAL:
-        // SORT REMAINING BY NAME
         return (
           a.username || ""
         ).localeCompare(
@@ -339,6 +333,102 @@ export default function MembersModal({
     youthLeaderOnly,
     user,
   ]);
+
+  const priorityMembers =
+    filteredMembers.filter(
+      (
+        member
+      ) =>
+        getMemberPriority(
+          member
+        ) < 5
+    );
+
+  const remainingMembers =
+    filteredMembers.filter(
+      (
+        member
+      ) =>
+        getMemberPriority(
+          member
+        ) === 5
+    );
+
+  const youthLeadersCount =
+    filteredMembers.filter(
+      (
+        member
+      ) =>
+        member.youth_leader
+          ?.toString()
+          .toLowerCase() ===
+        "true"
+    ).length;
+
+  const preachersCount =
+    filteredMembers.filter(
+      (
+        member
+      ) => {
+        const position =
+          member.position
+            ?.toString()
+            .toLowerCase() ||
+          "";
+
+        const role =
+          member.role
+            ?.toString()
+            .toLowerCase() ||
+          "";
+
+        return (
+          position.includes(
+            "preacher"
+          ) ||
+          position.includes(
+            "preachers"
+          ) ||
+          role.includes(
+            "preacher"
+          ) ||
+          role.includes(
+            "preachers"
+          )
+        );
+      }
+    ).length;
+
+  const adminsCount =
+    filteredMembers.filter(
+      (
+        member
+      ) =>
+        member.role
+          ?.toString()
+          .toLowerCase() ===
+        "admin"
+    ).length;
+
+  const preacherBadgeLabel =
+    preachersCount === 1
+      ? "Preacher"
+      : "Preachers";
+
+  const youthLeaderBadgeLabel =
+    youthLeadersCount === 1
+      ? "Youth Leader"
+      : "Youth Leaders";
+
+  const adminBadgeLabel =
+    adminsCount === 1
+      ? "Admin"
+      : "Admins";
+
+  const memberBadgeLabel =
+    filteredMembers.length === 1
+      ? "Member"
+      : "Members";
 
   // =====================================
   // FILTER OPTIONS
@@ -575,18 +665,49 @@ export default function MembersModal({
 
           {/* MEMBERS */}
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
               <h2 className="text-2xl font-bold">
                 All
                 Members
               </h2>
 
-              <p className="text-sm text-gray-500">
-                {
-                  filteredMembers.length
-                }{" "}
-                members
-              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="inline-flex items-center rounded-full border border-blue-200 bg-blue-50 px-4 py-1.5 text-base font-semibold text-blue-700">
+                  {
+                    filteredMembers.length
+                  }{" "}
+                  {
+                    memberBadgeLabel
+                  }
+                </p>
+
+                <p className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-base font-semibold text-emerald-700">
+                  {
+                    youthLeadersCount
+                  }{" "}
+                  {
+                    youthLeaderBadgeLabel
+                  }
+                </p>
+
+                <p className="inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-4 py-1.5 text-base font-semibold text-amber-700">
+                  {
+                    preachersCount
+                  }{" "}
+                  {
+                    preacherBadgeLabel
+                  }
+                </p>
+
+                <p className="inline-flex items-center rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-base font-semibold text-violet-700">
+                  {
+                    adminsCount
+                  }{" "}
+                  {
+                    adminBadgeLabel
+                  }
+                </p>
+              </div>
             </div>
 
             {loading ? (
@@ -602,35 +723,82 @@ export default function MembersModal({
                 found
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredMembers.map(
-                  (
-                    member
-                  ) => (
-                    <MemberCard
-                      key={
-                        member.id
-                      }
-                      member={
+              <div className="space-y-8">
+                {priorityMembers.length >
+                  0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {priorityMembers.map(
+                      (
                         member
-                      }
-                      isYou={
-                        member.email
-                          ?.toString()
-                          .trim()
-                          .toLowerCase() ===
-                        user?.email
-                          ?.toString()
-                          .trim()
-                          .toLowerCase()
-                      }
-                      onEdit={() =>
-                        setShowEditModal(
-                          true
-                        )
-                      }
-                    />
-                  )
+                      ) => (
+                        <MemberCard
+                          key={
+                            member.id
+                          }
+                          member={
+                            member
+                          }
+                          isYou={
+                            member.email
+                              ?.toString()
+                              .trim()
+                              .toLowerCase() ===
+                            user?.email
+                              ?.toString()
+                              .trim()
+                              .toLowerCase()
+                          }
+                          onEdit={() =>
+                            setShowEditModal(
+                              true
+                            )
+                          }
+                        />
+                      )
+                    )}
+                  </div>
+                )}
+
+                {priorityMembers.length >
+                  0 &&
+                  remainingMembers.length >
+                    0 && (
+                    <hr className="border-gray-200" />
+                  )}
+
+                {remainingMembers.length >
+                  0 && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {remainingMembers.map(
+                      (
+                        member
+                      ) => (
+                        <MemberCard
+                          key={
+                            member.id
+                          }
+                          member={
+                            member
+                          }
+                          isYou={
+                            member.email
+                              ?.toString()
+                              .trim()
+                              .toLowerCase() ===
+                            user?.email
+                              ?.toString()
+                              .trim()
+                              .toLowerCase()
+                          }
+                          onEdit={() =>
+                            setShowEditModal(
+                              true
+                            )
+                          }
+                        />
+                      )
+                    )}
+                  </div>
                 )}
               </div>
             )}
