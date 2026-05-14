@@ -1,21 +1,14 @@
-import type {
-  VercelRequest,
-  VercelResponse,
-} from "@vercel/node";
-
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sheets } from "../server/utils/googleDrive.js";
+import { withAdmin, methodNotAllowed, respondSuccess, respondError } from "../server/lib/auth.js";
+import type { AuthUser } from "../server/lib/jwt.js";
 
 const GOOGLE_USERS =
   process.env.GOOGLE_USERS_SHEET_ID || "";
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+async function handler(req: VercelRequest, res: VercelResponse, user: AuthUser) {
   if (!GOOGLE_USERS) {
-    return res.status(500).json({
-      error: "Missing GOOGLE_USERS_SHEET_ID",
-    });
+    return respondError(res, "Missing GOOGLE_USERS_SHEET_ID", 500);
   }
 
   try {
@@ -31,9 +24,7 @@ export default async function handler(
     const rows = result.data.values || [];
 
     if (rows.length === 0) {
-      return res.status(404).json({
-        error: "No data found",
-      });
+      return respondError(res, "No data found", 404);
     }
 
     // =========================================
@@ -47,9 +38,7 @@ export default async function handler(
       headers.indexOf("id");
 
     if (idIndex === -1) {
-      return res.status(500).json({
-        error: "No 'id' column found",
-      });
+      return respondError(res, "No 'id' column found", 500);
     }
 
     // =========================================
@@ -72,6 +61,14 @@ export default async function handler(
               ])
             )
           );
+
+        users = users.map((user: Record<string, any>) => {
+          const sanitizedUser = { ...user };
+          delete sanitizedUser.password;
+          delete sanitizedUser.secret;
+          delete sanitizedUser.token;
+          return sanitizedUser;
+        });
 
         // FILTER ACTIVE USERS
         if (active === "active") {
@@ -98,9 +95,7 @@ export default async function handler(
           !id ||
           typeof id !== "string"
         ) {
-          return res.status(400).json({
-            error: "Missing user id",
-          });
+          return respondError(res, "Missing user id", 400);
         }
 
         // FIND USER ROW
@@ -115,9 +110,7 @@ export default async function handler(
         // );
 
         if (rowIndex === -1) {
-          return res.status(404).json({
-            error: "User not found",
-          });
+          return respondError(res, "User not found", 404);
         }
 
         // EXISTING USER
@@ -204,11 +197,7 @@ export default async function handler(
           }
         );
 
-        return res.status(200).json({
-          success: true,
-          message:
-            "Profile updated successfully",
-        });
+        return res.status(200).json({ message: "Profile updated successfully" });
       }
 
       // =====================================
@@ -221,9 +210,7 @@ export default async function handler(
           !id ||
           typeof id !== "string"
         ) {
-          return res.status(400).json({
-            error: "Missing user id",
-          });
+          return respondError(res, "Missing user id", 400);
         }
 
         const rowIndex =
@@ -232,9 +219,7 @@ export default async function handler(
           );
 
         if (rowIndex === -1) {
-          return res.status(404).json({
-            error: "User not found",
-          });
+          return respondError(res, "User not found", 404);
         }
 
         await sheets.spreadsheets.batchUpdate(
@@ -263,20 +248,14 @@ export default async function handler(
           }
         );
 
-        return res.status(200).json({
-          success: true,
-          message:
-            "User deleted successfully",
-        });
+        return res.status(200).json({ message: "User deleted successfully" });
       }
 
       // =====================================
       // INVALID METHOD
       // =====================================
       default:
-        return res.status(405).json({
-          error: "Method not allowed",
-        });
+        return methodNotAllowed(res, ["GET", "PUT", "DELETE"]);
     }
   } catch (error) {
     console.error(
@@ -284,8 +263,8 @@ export default async function handler(
       error
     );
 
-    return res.status(500).json({
-      error: "Internal server error",
-    });
+    return respondError(res, "Internal server error", 500);
   }
 }
+
+export default withAdmin(handler);

@@ -12,7 +12,7 @@ export class MemStorage implements IStorage {
     // - Google Drive API for content and gallery
     // - Gmail OAuth for authentication  
     // - Nodemailer for email routing
-    console.log('Using external APIs for all data');
+    // console.log('Using external APIs for all data');
   }
 }
 

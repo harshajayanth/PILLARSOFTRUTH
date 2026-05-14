@@ -17,16 +17,18 @@ export default function AnnouncementSection() {
     fetch("/api/announcements")
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) {
+        if (data?.success === true && Array.isArray(data.data)) {
+          setAnnouncements(data.data);
+        } else if (Array.isArray(data)) {
           setAnnouncements(data);
         } else {
-          console.error("Invalid announcements response:", data);
+          // console.error("Invalid announcements response:", data);
           setAnnouncements([]);
         }
         setLoading(false);
       })
       .catch((err) => {
-        console.error("Failed to load announcements", err);
+        // console.error("Failed to load announcements", err);
         setAnnouncements([]);
         setLoading(false);
       });
@@ -43,7 +45,7 @@ export default function AnnouncementSection() {
         window.open(data.url, "_blank"); // open in new tab
       }
     } catch (error) {
-      console.error(error);
+      // console.error(error);
       alert("Unable to open announcement form");
     } finally {
       setRedirecting(false);
@@ -66,7 +68,7 @@ export default function AnnouncementSection() {
         alert("Failed to send email: " + error.message);
       }
     } catch (err) {
-      console.error("Send error:", err);
+      // console.error("Send error:", err);
       alert("Error sending announcement");
     } finally {
       setSendingId(null); // Reset after sending

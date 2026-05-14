@@ -1,25 +1,19 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import { verifyToken } from "../../server/lib/jwt.js";
+import { requireAuth, respondError, methodNotAllowed } from "../../server/lib/auth.js";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  const token = req.cookies?.auth_token;
-
-  if (!token) {
-    return res.status(401).json({ error: "Not logged in" });
+  if (req.method !== "GET") {
+    return methodNotAllowed(res, ["GET"]);
   }
 
-  try {
-    const decoded = verifyToken(token);
+  const user = requireAuth(req, res);
+  if (!user) return;
 
-    return res.status(200).json({
-      email: decoded?.email,
-      name: decoded?.name,
-      picture: decoded?.picture,
-      role: decoded?.role,
-      isAuthenticated: true, 
-    });
-  } catch (err) {
-    console.error("Invalid token", err);
-    return res.status(401).json({ error: "Invalid token" });
-  }
+  return res.status(200).json({
+    email: user.email,
+    name: user.name,
+    picture: user.picture,
+    role: user.role,
+    isAuthenticated: true,
+  });
 }

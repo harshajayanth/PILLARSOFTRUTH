@@ -1174,6 +1174,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   //Announcements
   app.get("/api/announcements", async (req, res) => {
+    const user = (req.session as any).user;
+    if (!user?.isAuthenticated) {
+      return res.status(401).json({ message: "Authentication required" });
+    }
     try {
       const csvUrl = GOOGLE_SHEET;
       const response = await fetch(csvUrl!);

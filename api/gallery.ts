@@ -1,14 +1,17 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { drive } from "../server/utils/googleDrive.js"; // ✅ Use shared Drive instance
+import { methodNotAllowed, respondError } from "../server/lib/auth.js";
 
 const GOOGLE_GALLERY_FOLDER_ID = process.env.GOOGLE_GALLERY_FOLDER_ID || "";
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "GET") {
+    return methodNotAllowed(res, ["GET"]);
+  }
+
   try {
     if (!GOOGLE_GALLERY_FOLDER_ID) {
-      return res
-        .status(500)
-        .json({ message: "Gallery folder ID not configured" });
+      return respondError(res, "Gallery folder ID not configured", 500);
     }
 
     // ✅ Fetch only image files inside the gallery folder
@@ -34,6 +37,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(galleryItems);
   } catch (error) {
     console.error("Gallery fetch error:", error);
-    res.status(500).json({ message: "Failed to fetch gallery images" });
+    return respondError(res, "Failed to fetch gallery images", 500);
   }
 }

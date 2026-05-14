@@ -33,6 +33,7 @@ import {
   Download,
   Eye,
   Search,
+  Lock,
 } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
@@ -60,6 +61,33 @@ type SessionGroup = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* GUEST SESSIONS */
+/* -------------------------------------------------------------------------- */
+
+const guestSessions: SessionGroup[] = [
+  {
+    title: "Foundation",
+    chapters: 0,
+    recordings: 0,
+    items: [],
+  },
+
+  {
+    title: "Growth",
+    chapters: 0,
+    recordings: 0,
+    items: [],
+  },
+
+  {
+    title: "Ministry",
+    chapters: 0,
+    recordings: 0,
+    items: [],
+  },
+];
+
+/* -------------------------------------------------------------------------- */
 /* SESSION ICONS */
 /* -------------------------------------------------------------------------- */
 
@@ -71,22 +99,30 @@ const sessionIcons: Record<string, any> = {
 
 const sessionStyles: Record<string, any> = {
   Foundation: {
-    bgGradient: "from-blue-50 to-blue-100",
-    borderColor: "border-blue-200",
+    bgGradient:
+      "from-blue-50 to-blue-100",
+    borderColor:
+      "border-blue-200",
     iconBg: "bg-primary",
-    buttonColor: "bg-primary hover:bg-blue-700",
+    buttonColor:
+      "bg-primary hover:bg-blue-700",
   },
 
   Growth: {
-    bgGradient: "from-purple-50 to-purple-100",
-    borderColor: "border-purple-200",
+    bgGradient:
+      "from-purple-50 to-purple-100",
+    borderColor:
+      "border-purple-200",
     iconBg: "bg-secondary",
-    buttonColor: "bg-secondary hover:bg-purple-700",
+    buttonColor:
+      "bg-secondary hover:bg-purple-700",
   },
 
   Ministry: {
-    bgGradient: "from-amber-50 to-amber-100",
-    borderColor: "border-amber-200",
+    bgGradient:
+      "from-amber-50 to-amber-100",
+    borderColor:
+      "border-amber-200",
     iconBg: "bg-accent",
     buttonColor:
       "bg-accent hover:bg-yellow-500 text-gray-900",
@@ -104,7 +140,9 @@ export default function SessionsOverview() {
     useState(false);
 
   const [selectedSession, setSelectedSession] =
-    useState<SessionGroup | null>(null);
+    useState<SessionGroup | null>(
+      null
+    );
 
   const [searchTerm, setSearchTerm] =
     useState("");
@@ -119,25 +157,59 @@ export default function SessionsOverview() {
   /* ---------------------------------------------------------------------- */
 
   const {
-    data: sessions = [],
+    data: sessions = guestSessions,
     isLoading,
     error,
   } = useQuery<SessionGroup[]>({
     queryKey: ["/api/content"],
 
+    retry: false,
+
     queryFn: async () => {
-      const res = await fetch("/api/content", {
-        credentials: "include",
-      });
+      const res = await fetch(
+        "/api/content",
+        {
+          credentials: "include",
+        }
+      );
 
       const json = await res.json();
 
-      return Array.isArray(json) ? json : [];
+      /* -------------------------------------------------------------- */
+      /* UNAUTHORIZED */
+      /* -------------------------------------------------------------- */
+
+      if (
+        res.status === 401 ||
+        json?.message ===
+          "Unauthorized" ||
+        json?.success === false
+      ) {
+        return guestSessions;
+      }
+
+      /* -------------------------------------------------------------- */
+      /* OTHER ERRORS */
+      /* -------------------------------------------------------------- */
+
+      if (!res.ok) {
+        throw new Error(
+          "Failed to fetch content"
+        );
+      }
+
+      /* -------------------------------------------------------------- */
+      /* SUCCESS */
+      /* -------------------------------------------------------------- */
+
+      return Array.isArray(json)
+        ? json
+        : guestSessions;
     },
   });
 
   /* ---------------------------------------------------------------------- */
-  /* RESET FILTERS WHEN MODAL CHANGES */
+  /* RESET FILTERS */
   /* ---------------------------------------------------------------------- */
 
   useEffect(() => {
@@ -164,12 +236,16 @@ export default function SessionsOverview() {
         const matchesFilter =
           filterType === "all"
             ? true
-            : filterType === "recordings"
-            ? item.type === "recording"
-            : item.type === "chapter";
+            : filterType ===
+              "recordings"
+            ? item.type ===
+              "recording"
+            : item.type ===
+              "chapter";
 
         return (
-          matchesSearch && matchesFilter
+          matchesSearch &&
+          matchesFilter
         );
       }
     );
@@ -183,13 +259,42 @@ export default function SessionsOverview() {
   /* DIVIDE CONTENT */
   /* ---------------------------------------------------------------------- */
 
-  const recordings = filteredItems.filter(
-    (item) => item.type === "recording"
-  );
+  const recordings =
+    filteredItems.filter(
+      (item) =>
+        item.type === "recording"
+    );
 
   const chapters = filteredItems.filter(
-    (item) => item.type === "chapter"
+    (item) =>
+      item.type === "chapter"
   );
+
+  /* ---------------------------------------------------------------------- */
+  /* OPEN SESSION */
+  /* ---------------------------------------------------------------------- */
+
+  const handleOpenSession = (
+    session: SessionGroup
+  ) => {
+    if (!user?.isAuthenticated) {
+      toast({
+        title:
+          "Authentication Required",
+
+        description:
+          "Please sign in to view session content",
+
+        variant: "destructive",
+      });
+
+      setShowAuthModal(true);
+
+      return;
+    }
+
+    setSelectedSession(session);
+  };
 
   /* ---------------------------------------------------------------------- */
   /* OPEN FILE */
@@ -200,9 +305,12 @@ export default function SessionsOverview() {
   ) => {
     if (!user?.isAuthenticated) {
       toast({
-        title: "Authentication Required",
+        title:
+          "Authentication Required",
+
         description:
           "Please sign in to access content",
+
         variant: "destructive",
       });
 
@@ -232,8 +340,9 @@ export default function SessionsOverview() {
           </h2>
 
           <p className="text-xl text-gray-600">
-            Three powerful sessions filled
-            with teachings and study materials
+            Three powerful sessions
+            filled with teachings and
+            study materials
           </p>
         </div>
 
@@ -262,11 +371,22 @@ export default function SessionsOverview() {
                 ] ||
                 sessionStyles.Foundation;
 
+              const isGuest =
+                !user?.isAuthenticated;
+
               return (
                 <Card
                   key={session.title}
-                  className={`card-hover bg-gradient-to-br ${style.bgGradient} ${style.borderColor} border`}
+                  className={`card-hover bg-gradient-to-br ${style.bgGradient} ${style.borderColor} border relative overflow-hidden`}
                 >
+                  {/* LOCK */}
+
+                  {isGuest && (
+                    <div className="absolute top-4 right-4">
+                      <Lock className="h-5 w-5 text-gray-500" />
+                    </div>
+                  )}
+
                   <CardContent className="p-8">
 
                     <div className="text-center">
@@ -314,17 +434,29 @@ export default function SessionsOverview() {
                         </div>
                       </div>
 
+                      {/* GUEST TEXT */}
+
+                      {isGuest && (
+                        <p className="text-sm text-gray-600 mb-4">
+                          Sign in to
+                          access session
+                          content
+                        </p>
+                      )}
+
                       {/* BUTTON */}
 
                       <Button
                         onClick={() =>
-                          setSelectedSession(
+                          handleOpenSession(
                             session
                           )
                         }
                         className={`w-full ${style.buttonColor}`}
                       >
-                        View Content
+                        {isGuest
+                          ? "Sign In to View"
+                          : "View Content"}
                       </Button>
                     </div>
                   </CardContent>
@@ -340,9 +472,13 @@ export default function SessionsOverview() {
 
         <Dialog
           open={!!selectedSession}
-          onOpenChange={() =>
-            setSelectedSession(null)
-          }
+          onOpenChange={(open) => {
+            if (!open) {
+              setSelectedSession(
+                null
+              );
+            }
+          }}
         >
           <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
 
@@ -382,7 +518,9 @@ export default function SessionsOverview() {
 
               <Select
                 value={filterType}
-                onValueChange={(value) =>
+                onValueChange={(
+                  value
+                ) =>
                   setFilterType(
                     value as
                       | "all"
@@ -425,61 +563,65 @@ export default function SessionsOverview() {
 
                 <div className="grid md:grid-cols-2 gap-4">
 
-                  {recordings.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="shadow-md"
-                    >
-                      <CardContent className="p-5">
+                  {recordings.map(
+                    (item) => (
+                      <Card
+                        key={item.id}
+                        className="shadow-md"
+                      >
+                        <CardContent className="p-5">
 
-                        <div className="flex items-center mb-4">
+                          <div className="flex items-center mb-4">
 
-                          <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mr-4">
-                            <Mic className="w-6 h-6" />
+                            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mr-4">
+                              <Mic className="w-6 h-6" />
+                            </div>
+
+                            <div>
+
+                              <h4 className="font-semibold text-gray-900">
+                                {
+                                  item.title
+                                }
+                              </h4>
+
+                              <p className="text-sm text-gray-500">
+                                {new Date(
+                                  item.createdAt
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
 
-                          <div>
+                          <div className="flex gap-2">
 
-                            <h4 className="font-semibold text-gray-900">
-                              {item.title}
-                            </h4>
+                            <Button
+                              onClick={() =>
+                                handleOpenFile(
+                                  item.fileUrl
+                                )
+                              }
+                              className="flex-1 bg-primary hover:bg-blue-700"
+                            >
+                              <Play className="h-4 w-4 mr-2" />
+                              Play
+                            </Button>
 
-                            <p className="text-sm text-gray-500">
-                              {new Date(
-                                item.createdAt
-                              ).toLocaleDateString()}
-                            </p>
+                            <Button
+                              variant="outline"
+                              onClick={() =>
+                                handleOpenFile(
+                                  item.fileUrl
+                                )
+                              }
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </div>
-
-                        <div className="flex gap-2">
-
-                          <Button
-                            onClick={() =>
-                              handleOpenFile(
-                                item.fileUrl
-                              )
-                            }
-                            className="flex-1 bg-primary hover:bg-blue-700"
-                          >
-                            <Play className="h-4 w-4 mr-2" />
-                            Play
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            onClick={() =>
-                              handleOpenFile(
-                                item.fileUrl
-                              )
-                            }
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    )
+                  )}
                 </div>
 
                 {recordings.length ===
@@ -505,67 +647,72 @@ export default function SessionsOverview() {
 
                 <div className="grid md:grid-cols-2 gap-4">
 
-                  {chapters.map((item) => (
-                    <Card
-                      key={item.id}
-                      className="shadow-md"
-                    >
-                      <CardContent className="p-5">
+                  {chapters.map(
+                    (item) => (
+                      <Card
+                        key={item.id}
+                        className="shadow-md"
+                      >
+                        <CardContent className="p-5">
 
-                        <div className="flex items-center mb-4">
+                          <div className="flex items-center mb-4">
 
-                          <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mr-4">
-                            <BookOpen className="w-6 h-6" />
+                            <div className="w-12 h-12 rounded-full bg-green-100 text-green-600 flex items-center justify-center mr-4">
+                              <BookOpen className="w-6 h-6" />
+                            </div>
+
+                            <div>
+
+                              <h4 className="font-semibold text-gray-900">
+                                {
+                                  item.title
+                                }
+                              </h4>
+
+                              <p className="text-sm text-gray-500">
+                                {new Date(
+                                  item.createdAt
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
 
-                          <div>
+                          <div className="flex gap-2">
 
-                            <h4 className="font-semibold text-gray-900">
-                              {item.title}
-                            </h4>
+                            <Button
+                              onClick={() =>
+                                handleOpenFile(
+                                  item.fileUrl
+                                )
+                              }
+                              className="flex-1 bg-secondary hover:bg-purple-700"
+                            >
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Button>
 
-                            <p className="text-sm text-gray-500">
-                              {new Date(
-                                item.createdAt
-                              ).toLocaleDateString()}
-                            </p>
+                            <Button
+                              variant="outline"
+                              onClick={() =>
+                                handleOpenFile(
+                                  item.fileUrl
+                                )
+                              }
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
                           </div>
-                        </div>
-
-                        <div className="flex gap-2">
-
-                          <Button
-                            onClick={() =>
-                              handleOpenFile(
-                                item.fileUrl
-                              )
-                            }
-                            className="flex-1 bg-secondary hover:bg-purple-700"
-                          >
-                            <Eye className="h-4 w-4 mr-2" />
-                            View
-                          </Button>
-
-                          <Button
-                            variant="outline"
-                            onClick={() =>
-                              handleOpenFile(
-                                item.fileUrl
-                              )
-                            }
-                          >
-                            <Download className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        </CardContent>
+                      </Card>
+                    )
+                  )}
                 </div>
 
                 {chapters.length ===
                   0 && (
                   <p className="text-gray-500">
-                    No chapter notes found.
+                    No chapter notes
+                    found.
                   </p>
                 )}
               </div>

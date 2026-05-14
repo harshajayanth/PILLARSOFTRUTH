@@ -93,7 +93,7 @@ export default function FinanceDashboard() {
       }
       setUser(data);
     } catch (err) {
-      console.error("Auth error:", err);
+      // console.error("Auth error:", err);
       navigate("/");
     }
   };
@@ -139,7 +139,7 @@ export default function FinanceDashboard() {
         setSelectedMeetingId("");
       }
     } catch (err) {
-      console.error("❌ Failed to fetch all data", err);
+      // console.error("❌ Failed to fetch all data", err);
     } finally {
       setLoading(false);
     }
@@ -252,7 +252,7 @@ export default function FinanceDashboard() {
       const last = data.at(-1)!;
       return parseFloat(last.accountbalance || "0");
     } catch (err) {
-      console.error("❌ Failed to fetch latest balance", err);
+      // console.error("❌ Failed to fetch latest balance", err);
       return 0;
     }
   };
@@ -339,7 +339,7 @@ export default function FinanceDashboard() {
         });
       }
     } catch (error) {
-      console.error("❌ Update error:", error);
+      // console.error("❌ Update error:", error);
       toast({
         title: "Network Error",
         description: "Could not update meeting",
@@ -400,7 +400,7 @@ export default function FinanceDashboard() {
         toast({ title: "❌ Failed to Add Meeting", variant: "destructive" });
       }
     } catch (err) {
-      console.error("❌ Network Error:", err);
+      // console.error("❌ Network Error:", err);
       toast({
         title: "Network Error",
         description: "Please check your connection.",

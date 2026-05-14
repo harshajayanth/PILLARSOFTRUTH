@@ -103,10 +103,10 @@ export default function MembersModal({
           data
         );
       } catch (error) {
-        console.error(
-          "Failed to fetch members:",
-          error
-        );
+        // console.error(
+        //   "Failed to fetch members:",
+        //   error
+        // );
       } finally {
         setLoading(
           false

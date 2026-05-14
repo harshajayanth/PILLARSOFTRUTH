@@ -25,7 +25,7 @@ export default function Payment() {
       });
       navigate("/");
     } catch (err) {
-      console.error("Failed to submit donation:", err);
+      // console.error("Failed to submit donation:", err);
     } finally {
       setLoading(false);
     }

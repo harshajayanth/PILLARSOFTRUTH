@@ -1,5 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sheets } from "../server/utils/googleDrive.js"; 
+import { withAdmin, methodNotAllowed, respondError } from "../server/lib/auth.js";
+import type { AuthUser } from "../server/lib/jwt.js";
 
 const FINANCE_SHEET_ID = process.env.GOOGLE_FINANCE_SHEET_ID;
 const FINANCE_SHEET_NAME = "Sheet1"; // change if different
@@ -34,9 +36,9 @@ function parseRows(rows: string[][]) {
   });
 }
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default withAdmin(async function handler(req: VercelRequest, res: VercelResponse, user: AuthUser) {
   try {
-    if (req.method === "GET") {
+  if (req.method === "GET") {
       // ✅ FETCH all finance rows
       const response = await sheets.spreadsheets.values.get({
         spreadsheetId: FINANCE_SHEET_ID,
@@ -52,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // ✅ ADD new finance entry
       const body = req.body;
       if (!body.meetingname || !body.meetingdate)
-        return res.status(400).json({ message: "Missing required fields" });
+        return respondError(res, "Missing required fields", 400);
 
       // ✅ Create new row in same column order
       const newRow = [
@@ -79,7 +81,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         valueInputOption: "RAW",
         requestBody: { values: [newRow] },
       });
-
       return res.status(200).json({ message: "Finance entry added" });
     }
 
@@ -87,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       // ✅ UPDATE existing row (by meetingdate)
       const body = req.body;
       if (!body.meetingdate)
-        return res.status(400).json({ message: "Missing meetingdate" });
+        return respondError(res, "Missing meetingdate", 400);
 
       // Fetch current rows
       const response = await sheets.spreadsheets.values.get({
@@ -100,7 +101,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const idx = rows.findIndex((row) => row[2] === body.meetingdate);
 
       if (idx === -1)
-        return res.status(404).json({ message: "Meeting not found" });
+        return respondError(res, "Meeting not found", 404);
 
       // Build updated row
       const updatedRow = [
@@ -129,13 +130,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         valueInputOption: "RAW",
         requestBody: { values: [updatedRow] },
       });
-
       return res.status(200).json({ message: "Finance entry updated" });
     }
-
-    return res.status(405).json({ message: "Method Not Allowed" });
+    return methodNotAllowed(res, ["GET", "POST", "PUT"]);
   } catch (error) {
     console.error("❌ Finance API Error:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return respondError(res, "Internal Server Error", 500);
   }
-}
+});

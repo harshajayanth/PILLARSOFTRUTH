@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/lib/auth";
 
 import { motion } from "framer-motion";
 
@@ -23,6 +24,9 @@ export default function GallerySection() {
   const [selectedImage, setSelectedImage] =
     useState<string | null>(null);
 
+  const { user } = useAuth();
+  
+
   const {
     data: galleryItems = [],
     isLoading,
@@ -39,7 +43,11 @@ export default function GallerySection() {
         );
       }
 
-      return res.json();
+      const json = await res.json();
+      if (json?.success === false) {
+        throw new Error(json.message || "Failed to fetch gallery");
+      }
+      return Array.isArray(json) ? json : json?.data || [];
     },
   });
 
@@ -167,6 +175,7 @@ export default function GallerySection() {
             {/* GALLERY MODAL */}
             {/* ---------------------------------------------------------------- */}
 
+            {user?.isAuthenticated && (
             <Dialog
               open={openGallery}
               onOpenChange={
@@ -268,6 +277,7 @@ export default function GallerySection() {
                 )} */}
               </DialogContent>
             </Dialog>
+            )}
           </>
         )}
       </div>

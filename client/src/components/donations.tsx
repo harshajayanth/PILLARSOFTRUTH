@@ -39,7 +39,7 @@ export default function DonationsPage() {
         setUser(data);
       }
     } catch (err) {
-      console.error("Auth error:", err);
+      // console.error("Auth error:", err);
       navigate("/");
     }
   };
@@ -64,7 +64,7 @@ export default function DonationsPage() {
 
       setDonations(sortedData);
     } catch (err) {
-      console.error("Failed to fetch donations:", err);
+      // console.error("Failed to fetch donations:", err);
     } finally {
       setLoading(false);
     }
@@ -80,7 +80,7 @@ export default function DonationsPage() {
       });
       await fetchDonations();
     } catch (err) {
-      console.error("Failed to update donation:", err);
+      // console.error("Failed to update donation:", err);
     } finally {
       setUpdatingId(null);
     }

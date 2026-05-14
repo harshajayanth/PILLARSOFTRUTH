@@ -1,55 +1,34 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { drive } from "../server/utils/googleDrive.js";
-import { verifyToken } from "../server/lib/jwt.js";
+import { withAuth, methodNotAllowed, respondError } from "../server/lib/auth.js";
+import type { AuthUser } from "../server/lib/jwt.js";
 
-const GOOGLE_DRIVE_FOLDER_ID =
-  process.env.GOOGLE_DRIVE_FOLDER_ID || "";
+const GOOGLE_DRIVE_FOLDER_ID = process.env.GOOGLE_DRIVE_FOLDER_ID || "";
 
-export default async function handler(
-  req: VercelRequest,
-  res: VercelResponse
-) {
+async function handler(req: VercelRequest, res: VercelResponse, user: AuthUser) {
+  if (req.method !== "GET") {
+    return methodNotAllowed(res, ["GET"]);
+  }
+
   try {
-    const token = req.cookies?.auth_token;
-
-    if (!token) {
-      return res.status(401).json({
-        message: "Authentication required",
-      });
-    }
-
-    try {
-      verifyToken(token);
-    } catch {
-      return res.status(401).json({
-        message: "Invalid token",
-      });
-    }
-
     const response = await drive.files.list({
       q: `'${GOOGLE_DRIVE_FOLDER_ID}' in parents and trashed=false`,
-      fields:
-        "files(id,name,mimeType,webViewLink,createdTime,description)",
+      fields: "files(id,name,mimeType,webViewLink,createdTime,description)",
       orderBy: "createdTime desc",
       pageSize: 100,
     });
 
     const files = response.data.files || [];
-
-    // GROUP SESSIONS
     const groupedSessions: Record<string, any> = {};
 
     files.forEach((file) => {
       const sessionName = file.description || "Uncategorized";
-
       const isAudio =
         file.mimeType?.startsWith("audio/") ||
         /\.(mp3|wav|m4a|aac|ogg)$/i.test(file.name || "");
-
       const item = {
         id: file.id,
-        title:
-          file.name?.replace(/\.[^/.]+$/, "") || "Untitled",
+        title: file.name?.replace(/\.[^/.]+$/, "") || "Untitled",
         type: isAudio ? "recording" : "chapter",
         fileUrl: `https://drive.google.com/file/d/${file.id}/preview`,
         createdAt: file.createdTime,
@@ -65,7 +44,6 @@ export default async function handler(
       }
 
       groupedSessions[sessionName].items.push(item);
-
       if (isAudio) {
         groupedSessions[sessionName].recordings++;
       } else {
@@ -73,14 +51,11 @@ export default async function handler(
       }
     });
 
-    return res.status(200).json(
-      Object.values(groupedSessions)
-    );
+    return res.status(200).json(Object.values(groupedSessions));
   } catch (error) {
     console.error("Content fetch error:", error);
-
-    return res.status(500).json({
-      message: "Failed to fetch content",
-    });
+    return respondError(res, "Failed to fetch content", 500);
   }
 }
+
+export default withAuth(handler);

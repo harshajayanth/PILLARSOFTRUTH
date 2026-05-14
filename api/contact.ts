@@ -1,7 +1,4 @@
-import type {
-  VercelRequest,
-  VercelResponse,
-} from "@vercel/node";
+import type { VercelRequest, VercelResponse } from "@vercel/node";
 
 import {
   sheets,
@@ -19,6 +16,7 @@ import {
 import {
   contactFormSchema,
 } from "../shared/schema.js";
+import { methodNotAllowed, respondError } from "../server/lib/auth.js";
 
 const GOOGLE_USERS =
   process.env
@@ -35,12 +33,7 @@ export default async function handler(
     req.method !==
     "POST"
   ) {
-    return res
-      .status(405)
-      .json({
-        message:
-          "Method Not Allowed",
-      });
+    return methodNotAllowed(res, ["POST"]);
   }
 
   try {
@@ -55,17 +48,7 @@ export default async function handler(
     if (
       !validation.success
     ) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Invalid form data",
-
-          errors:
-            validation
-              .error
-              .errors,
-        });
+      return respondError(res, "Invalid form data", 400);
     }
 
     const formData =
@@ -120,17 +103,8 @@ export default async function handler(
     // =====================================
     // DUPLICATE CHECK
     // =====================================
-    if (
-      existingEmails.includes(
-        incomingEmail
-      )
-    ) {
-      return res
-        .status(409)
-        .json({
-          message:
-            "Email already registered",
-        });
+    if (existingEmails.includes(incomingEmail)) {
+      return respondError(res, "Email already registered", 409);
     }
 
     // =====================================
@@ -350,11 +324,8 @@ export default async function handler(
     // =====================================
     // SUCCESS
     // =====================================
-    return res.json({
-      success: true,
-
-      message:
-        "Application submitted successfully",
+    return res.status(200).json({
+      message: "Application submitted successfully",
     });
   } catch (error) {
     console.error(
@@ -362,11 +333,6 @@ export default async function handler(
       error
     );
 
-    return res
-      .status(500)
-      .json({
-        message:
-          "Failed to submit application",
-      });
+    return respondError(res, "Failed to submit application", 500);
   }
 }

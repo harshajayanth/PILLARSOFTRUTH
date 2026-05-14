@@ -49,6 +49,7 @@ export default function ContentLibrary() {
   >("all");
 
   const { user } = useAuth();
+
   const { toast } = useToast();
 
   const [showModal, setShowModal] =
@@ -72,7 +73,9 @@ export default function ContentLibrary() {
 
       const json = await res.json();
 
-      return Array.isArray(json) ? json : [];
+      return Array.isArray(json)
+        ? json
+        : [];
     },
   });
 
@@ -85,8 +88,8 @@ export default function ContentLibrary() {
       session.items.map((item) => ({
         ...item,
 
-        // attach session title optionally
-        description: session.title,
+        description:
+          session.title,
       }))
     );
 
@@ -94,33 +97,53 @@ export default function ContentLibrary() {
   /* FILTER CONTENT */
   /* ---------------------------------------------------------------------- */
 
-  const filteredContent = allContent.filter(
-    (item) => {
-      if (activeFilter === "all") return true;
+  const filteredContent =
+    allContent.filter((item) => {
+      if (activeFilter === "all")
+        return true;
 
-      if (activeFilter === "recordings") {
-        return item.type === "recording";
+      if (
+        activeFilter ===
+        "recordings"
+      ) {
+        return (
+          item.type ===
+          "recording"
+        );
       }
 
-      if (activeFilter === "chapters") {
-        return item.type === "chapter";
+      if (
+        activeFilter ===
+        "chapters"
+      ) {
+        return (
+          item.type ===
+          "chapter"
+        );
       }
 
       return true;
-    }
-  );
+    });
 
   /* ---------------------------------------------------------------------- */
   /* OPEN CONTENT */
   /* ---------------------------------------------------------------------- */
 
-  const handleOpen = (item: SessionItem) => {
-    if (!user?.isAuthenticated) {
+  const handleOpen = (
+    item: SessionItem
+  ) => {
+    if (
+      !user?.isAuthenticated
+    ) {
       toast({
-        title: "Authentication Required",
+        title:
+          "Authentication Required",
+
         description:
           "Please sign in to access content",
-        variant: "destructive",
+
+        variant:
+          "destructive",
       });
 
       setShowModal(true);
@@ -128,7 +151,10 @@ export default function ContentLibrary() {
       return;
     }
 
-    window.open(item.fileUrl, "_blank");
+    window.open(
+      item.fileUrl,
+      "_blank"
+    );
   };
 
   /* ---------------------------------------------------------------------- */
@@ -145,12 +171,15 @@ export default function ContentLibrary() {
         <div className="text-center mb-16">
 
           <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-            Recordings & Study Materials
+            Recordings &
+            Study Materials
           </h2>
 
           <p className="text-xl text-gray-600">
-            Access our comprehensive library
-            of teachings and resources
+            Access our
+            comprehensive library
+            of teachings and
+            resources
           </p>
         </div>
 
@@ -162,15 +191,19 @@ export default function ContentLibrary() {
 
             <Button
               variant={
-                activeFilter === "all"
+                activeFilter ===
+                "all"
                   ? "default"
                   : "ghost"
               }
               onClick={() =>
-                setActiveFilter("all")
+                setActiveFilter(
+                  "all"
+                )
               }
               className={
-                activeFilter === "all"
+                activeFilter ===
+                "all"
                   ? "bg-primary text-white"
                   : "text-gray-600 hover:text-primary"
               }
@@ -180,15 +213,19 @@ export default function ContentLibrary() {
 
             <Button
               variant={
-                activeFilter === "recordings"
+                activeFilter ===
+                "recordings"
                   ? "default"
                   : "ghost"
               }
               onClick={() =>
-                setActiveFilter("recordings")
+                setActiveFilter(
+                  "recordings"
+                )
               }
               className={
-                activeFilter === "recordings"
+                activeFilter ===
+                "recordings"
                   ? "bg-primary text-white"
                   : "text-gray-600 hover:text-primary"
               }
@@ -198,15 +235,19 @@ export default function ContentLibrary() {
 
             <Button
               variant={
-                activeFilter === "chapters"
+                activeFilter ===
+                "chapters"
                   ? "default"
                   : "ghost"
               }
               onClick={() =>
-                setActiveFilter("chapters")
+                setActiveFilter(
+                  "chapters"
+                )
               }
               className={
-                activeFilter === "chapters"
+                activeFilter ===
+                "chapters"
                   ? "bg-primary text-white"
                   : "text-gray-600 hover:text-primary"
               }
@@ -216,7 +257,7 @@ export default function ContentLibrary() {
           </div>
         </div>
 
-        {/* LOADING */}
+        {/* CONTENT */}
 
         {isLoading ? (
           <div className="flex justify-center">
@@ -225,115 +266,162 @@ export default function ContentLibrary() {
         ) : error ? (
           <div className="text-center text-red-600">
             <p>
-              Failed to load content. Please try
+              Failed to load
+              content. Please try
               again later.
             </p>
+          </div>
+        ) : !user?.isAuthenticated ? (
+          <div className="flex flex-col items-center justify-center bg-white rounded-2xl shadow-lg py-16 px-6 text-center">
+
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-6">
+              <BookOpen className="w-10 h-10 text-primary" />
+            </div>
+
+            <h3 className="text-2xl font-bold text-gray-900 mb-3">
+              Login Required
+            </h3>
+
+            <p className="text-gray-600 max-w-md mb-8">
+              Please sign in to
+              access recordings,
+              study materials, and
+              session content.
+            </p>
+
+            <Button
+              onClick={() =>
+                setShowModal(
+                  true
+                )
+              }
+              className="bg-primary hover:bg-blue-700 text-white px-8"
+            >
+              Login to Continue
+            </Button>
           </div>
         ) : (
           <div
             className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 overflow-y-auto no-scrollbar"
-            style={{ maxHeight: "500px" }}
+            style={{
+              maxHeight:
+                "500px",
+            }}
           >
-            {filteredContent.map((item) => (
-              <Card
-                key={item.id}
-                className="card-hover bg-white shadow-lg overflow-hidden"
-              >
-                <CardContent className="p-6">
+            {filteredContent.map(
+              (item) => (
+                <Card
+                  key={item.id}
+                  className="card-hover bg-white shadow-lg overflow-hidden"
+                >
+                  <CardContent className="p-6">
 
-                  {/* HEADER */}
+                    {/* HEADER */}
 
-                  <div className="flex items-center mb-4">
+                    <div className="flex items-center mb-4">
 
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
-                        item.type === "recording"
-                          ? "bg-red-100 text-red-600"
-                          : "bg-green-100 text-green-600"
-                      }`}
-                    >
-                      {item.type ===
-                      "recording" ? (
-                        <Mic className="h-6 w-6" />
-                      ) : (
-                        <BookOpen className="h-6 w-6" />
-                      )}
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center mr-4 ${
+                          item.type ===
+                          "recording"
+                            ? "bg-red-100 text-red-600"
+                            : "bg-green-100 text-green-600"
+                        }`}
+                      >
+                        {item.type ===
+                        "recording" ? (
+                          <Mic className="h-6 w-6" />
+                        ) : (
+                          <BookOpen className="h-6 w-6" />
+                        )}
+                      </div>
+
+                      <div>
+
+                        <h3 className="font-semibold text-gray-900">
+                          {
+                            item.title
+                          }
+                        </h3>
+
+                        <p className="text-sm text-primary">
+                          {
+                            item.description
+                          }
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <h3 className="font-semibold text-gray-900">
-                        {item.title}
-                      </h3>
+                    {/* DATE */}
 
-                      {/* SESSION NAME */}
-
-                      <p className="text-sm text-primary">
-                        {item.description}
-                      </p>
+                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
+                      <span>
+                        {new Date(
+                          item.createdAt
+                        ).toLocaleDateString()}
+                      </span>
                     </div>
-                  </div>
 
-                  {/* DATE */}
+                    {/* BUTTONS */}
 
-                  <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                    <span>
-                      {new Date(
-                        item.createdAt
-                      ).toLocaleDateString()}
-                    </span>
-                  </div>
+                    <div className="flex space-x-2">
 
-                  {/* BUTTONS */}
+                      <Button
+                        onClick={() =>
+                          handleOpen(
+                            item
+                          )
+                        }
+                        className={`flex-1 ${
+                          item.type ===
+                          "recording"
+                            ? "bg-primary hover:bg-blue-700"
+                            : "bg-secondary hover:bg-purple-700"
+                        } text-white`}
+                      >
+                        {item.type ===
+                        "recording" ? (
+                          <>
+                            <Play className="h-4 w-4 mr-2" />
+                            Play
+                          </>
+                        ) : (
+                          <>
+                            <Eye className="h-4 w-4 mr-2" />
+                            View
+                          </>
+                        )}
+                      </Button>
 
-                  <div className="flex space-x-2">
-
-                    <Button
-                      onClick={() =>
-                        handleOpen(item)
-                      }
-                      className={`flex-1 ${
-                        item.type === "recording"
-                          ? "bg-primary hover:bg-blue-700"
-                          : "bg-secondary hover:bg-purple-700"
-                      } text-white`}
-                    >
-                      {item.type ===
-                      "recording" ? (
-                        <>
-                          <Play className="h-4 w-4 mr-2" />
-                          Play
-                        </>
-                      ) : (
-                        <>
-                          <Eye className="h-4 w-4 mr-2" />
-                          View
-                        </>
-                      )}
-                    </Button>
-
-                    <Button
-                      onClick={() =>
-                        handleOpen(item)
-                      }
-                      variant="outline"
-                      className="bg-gray-100 text-gray-600 hover:bg-gray-200"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+                      <Button
+                        onClick={() =>
+                          handleOpen(
+                            item
+                          )
+                        }
+                        variant="outline"
+                        className="bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            )}
           </div>
         )}
 
         {/* EMPTY */}
 
-        {filteredContent.length === 0 &&
-          !isLoading && (
+        {filteredContent.length ===
+          0 &&
+          !isLoading &&
+          user?.isAuthenticated && (
             <div className="text-center text-gray-600">
               <p>
-                No content available for the
+                No content
+                available for the
                 selected filter.
               </p>
             </div>
@@ -343,7 +431,9 @@ export default function ContentLibrary() {
 
         <AuthModal
           isOpen={showModal}
-          onClose={() => setShowModal(false)}
+          onClose={() =>
+            setShowModal(false)
+          }
         />
       </div>
     </section>
