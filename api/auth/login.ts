@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { google } from "googleapis";
+import { methodNotAllowed, respondError } from "../../server/lib/auth.js";
 
 // ✅ Environment variables
 const GMAIL_CLIENT_ID = process.env.GMAIL_CLIENT_ID || "";
@@ -18,7 +19,7 @@ const oauth2Client = new google.auth.OAuth2(
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
-    return res.status(405).json({ message: "Method Not Allowed" });
+    return methodNotAllowed(res, ["POST"]);
   }
 
   try {
@@ -37,6 +38,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ redirectUrl: authUrl });
   } catch (error) {
     console.error("Auth login error:", error);
-    return res.status(500).json({ message: "Internal Server Error" });
+    return respondError(res, "Internal Server Error", 500);
   }
 }

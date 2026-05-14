@@ -181,10 +181,10 @@ export default function UsersPage() {
 
         setUser(data);
       } catch (err) {
-        console.error(
-          "Auth error:",
-          err
-        );
+        // console.error(
+        //   "Auth error:",
+        //   err
+        // );
 
         navigate("/");
       }

@@ -1,4 +1,5 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
+import { methodNotAllowed, respondError } from "../../server/lib/auth.js";
 import { google } from "googleapis";
 import { signToken } from "../../server/lib/jwt.js";
 import { sheets } from "../../server/utils/googleDrive.js"; // ✅ Reuse service account
@@ -22,10 +23,13 @@ const oauth2Client = new google.auth.OAuth2(
 );
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== "GET") {
+    return methodNotAllowed(res, ["GET"]);
+  }
   try {
     const { code } = req.query;
     if (!code) {
-      return res.status(400).json({ message: "Authorization code missing" });
+      return respondError(res, "Authorization code missing", 400);
     }
 
     // ✅ 1. Exchange code for tokens
@@ -48,7 +52,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
 
     const rows = sheetData.data.values || [];
-    console.log(rows)
+    // console.log(rows)
     const matchedUser = rows.find((row) => {
       const sheetEmail = row[2]
         ?.toString()
@@ -58,10 +62,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sheetEmail === userEmail.trim().toLowerCase();
     });
 
-    console.log(matchedUser)
+    // console.log(matchedUser)
 
     if (!matchedUser) {
-      console.warn(`❌ User not found: ${userEmail}`);
+      // console.warn(`❌ User not found: ${userEmail}`);
       return res.redirect("/?auth=denied");
     }
 
@@ -76,7 +80,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     .toLowerCase();
 
     if (access !== "active") {
-      console.warn(`⏳ Access not approved for: ${userEmail}`);
+      // console.warn(`⏳ Access not approved for: ${userEmail}`);
       return res.redirect("/?auth=pending");
     }
 

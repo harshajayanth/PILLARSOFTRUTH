@@ -3,13 +3,14 @@ import type {
   VercelResponse,
 } from "@vercel/node";
 
+import { chatMessageSchema } from "../shared/schema.js";
 import {
-  chatMessageSchema,
-} from "../shared/schema.js";
-
-import {
-  verifyToken,
-} from "../server/lib/jwt.js";
+  getUserFromToken,
+  respondSuccess,
+  respondError,
+  escapeHtml,
+  methodNotAllowed,
+} from "../server/lib/auth.js";
 
 import {
   getCommunityEmails,
@@ -27,41 +28,15 @@ export default async function handler(
   // =====================================
   // METHOD CHECK
   // =====================================
-  if (
-    req.method !==
-    "POST"
-  ) {
-    return res
-      .status(405)
-      .json({
-        message:
-          "Method Not Allowed",
-      });
+  if (req.method !== "POST") {
+    return methodNotAllowed(res, ["POST"]);
   }
 
   try {
     // =====================================
     // GET LOGGED IN USER
     // =====================================
-    let senderUser =
-      null;
-
-    const token =
-      req.cookies
-        ?.auth_token;
-
-    if (token) {
-      try {
-        senderUser =
-          verifyToken(
-            token
-          );
-      } catch {
-        console.warn(
-          "Invalid JWT, using senderEmail fallback"
-        );
-      }
-    }
+    const senderUser = getUserFromToken(req);
 
     // =====================================
     // VALIDATE REQUEST
@@ -71,20 +46,8 @@ export default async function handler(
         req.body
       );
 
-    if (
-      !validation.success
-    ) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Invalid message data",
-
-          errors:
-            validation
-              .error
-              .errors,
-        });
+    if (!validation.success) {
+      return respondError(res, "Invalid message data", 400);
     }
 
     const {
@@ -108,15 +71,8 @@ export default async function handler(
         ?.name ||
       "Anonymous";
 
-    if (
-      !senderEmail
-    ) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "Sender email required",
-        });
+    if (!senderEmail) {
+      return respondError(res, "Sender email required", 400);
     }
 
     // =====================================
@@ -198,16 +154,8 @@ export default async function handler(
     // =====================================
     // VALIDATE RECIPIENTS
     // =====================================
-    if (
-      recipients.length ===
-      0
-    ) {
-      return res
-        .status(404)
-        .json({
-          message:
-            "No recipients found",
-        });
+    if (recipients.length === 0) {
+      return respondError(res, "No recipients found", 404);
     }
 
     // =====================================
@@ -216,7 +164,7 @@ export default async function handler(
     const mailOptions =
       {
         // SMTP SAFE
-        from: `"${senderName}" <${ADMIN_EMAIL}>`,
+        from: `"${escapeHtml(senderName)}" <${escapeHtml(ADMIN_EMAIL)}>`,
 
         // REAL REPLY TARGET
         replyTo:
@@ -239,20 +187,8 @@ export default async function handler(
             New Community Chat Message
           </h2>
 
-          <p>
-            <strong>
-              From:
-            </strong>
-            ${senderName}
-            (${senderEmail})
-          </p>
-
-          <p>
-            <strong>
-              Route:
-            </strong>
-            ${route}
-          </p>
+          <p><strong>From:</strong> ${escapeHtml(senderName)} (${escapeHtml(senderEmail)})</p>
+          <p><strong>Route:</strong> ${escapeHtml(route)}</p>
 
           <p>
             <strong>
@@ -260,22 +196,13 @@ export default async function handler(
             </strong>
           </p>
 
-          <div
-            style="
-              background: #f5f5f5;
-              padding: 15px;
-              border-radius: 5px;
-              margin: 10px 0;
-            "
-          >
-            ${message}
+          <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
+            ${escapeHtml(message)}
           </div>
 
           <p>
             <em>
-              Replying to this email
-              will directly reply to:
-              ${senderEmail}
+              Replying to this email will directly reply to: ${escapeHtml(senderEmail)}
             </em>
           </p>
         `,
@@ -288,11 +215,8 @@ export default async function handler(
       mailOptions
     );
 
-    return res.json({
-      success: true,
-
-      message:
-        "Message sent successfully",
+    return respondSuccess(res, {
+      message: "Message sent successfully",
     });
   } catch (error) {
     console.error(
@@ -300,11 +224,6 @@ export default async function handler(
       error
     );
 
-    return res
-      .status(500)
-      .json({
-        message:
-          "Failed to send message",
-      });
+    return respondError(res, "Failed to send message", 500);
   }
 }

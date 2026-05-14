@@ -2,6 +2,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { sheets } from "../server/utils/googleDrive.js";
 import { transporter } from "../server/lib/mailer.js";
 import { v4 as uuidv4 } from "uuid";
+import { withAdmin, methodNotAllowed, respondError } from "../server/lib/auth.js";
+import type { AuthUser } from "../server/lib/jwt.js";
 
 const DONATION_SHEET_ID = process.env.GOOGLE_DONATIONS_SHEET_ID || "";
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || "pillarsoftruth.coc@gmail.com";
@@ -10,20 +12,20 @@ const SHEET_NAME = "Sheet1"; // Change if needed
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   switch (req.method) {
     case "GET":
-      return handleGetDonations(req, res);
+      return withAdmin(handleGetDonations)(req, res);
     case "POST":
       return handleAddDonation(req, res);
     case "PUT":
-      return handleConfirmDonation(req, res);
+      return withAdmin(handleConfirmDonation)(req, res);
     default:
-      return res.status(405).json({ message: "Method Not Allowed" });
+      return methodNotAllowed(res, ["GET", "POST", "PUT"]);
   }
 }
 
 //
 // ✅ GET → Fetch all donation records
 //
-async function handleGetDonations(req: VercelRequest, res: VercelResponse) {
+async function handleGetDonations(req: VercelRequest, res: VercelResponse, user: AuthUser) {
   try {
     const response = await sheets.spreadsheets.values.get({
       spreadsheetId: DONATION_SHEET_ID,
@@ -31,7 +33,7 @@ async function handleGetDonations(req: VercelRequest, res: VercelResponse) {
     });
 
     const rows = response.data.values;
-    if (!rows || rows.length < 2) return res.json([]);
+    if (!rows || rows.length < 2) return res.status(200).json([]);
 
     const headers = rows[0];
     const donations = rows.slice(1).map((row) => {
@@ -45,7 +47,7 @@ async function handleGetDonations(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(donations);
   } catch (err) {
     console.error("❌ Failed to fetch donations:", err);
-    return res.status(500).json({ message: "Failed to fetch donations" });
+    return respondError(res, "Failed to fetch donations", 500);
   }
 }
 
@@ -57,7 +59,7 @@ async function handleAddDonation(req: VercelRequest, res: VercelResponse) {
     const { uniqueId, name, email, phone, amount, purpose, confirmed } = req.body;
 
     if (!name || !email || !amount || !purpose) {
-      return res.status(400).json({ message: "Missing required fields" });
+      return respondError(res, "Missing required fields", 400);
     }
 
     const donationId = uniqueId || uuidv4();
@@ -101,24 +103,23 @@ async function handleAddDonation(req: VercelRequest, res: VercelResponse) {
     await transporter.sendMail(mailOptions);
 
     return res.status(200).json({
-      success: true,
       message: "Donation recorded successfully",
       id: donationId,
     });
   } catch (err) {
     console.error("❌ Failed to record donation:", err);
-    return res.status(500).json({ message: "Failed to record donation" });
+    return respondError(res, "Failed to record donation", 500);
   }
 }
 
 //
 // ✅ PUT → Confirm a donation and send donor confirmation email
 //
-async function handleConfirmDonation(req: VercelRequest, res: VercelResponse) {
+async function handleConfirmDonation(req: VercelRequest, res: VercelResponse, user: AuthUser) {
   try {
     const { uniqueId } = req.body;
     if (!uniqueId) {
-      return res.status(400).json({ message: "Missing uniqueId" });
+      return respondError(res, "Missing uniqueId", 400);
     }
 
     // Fetch all rows
@@ -129,7 +130,7 @@ async function handleConfirmDonation(req: VercelRequest, res: VercelResponse) {
 
     const rows = response.data.values;
     if (!rows || rows.length < 2) {
-      return res.status(500).json({ message: "No donation data available" });
+      return respondError(res, "No donation data available", 500);
     }
 
     const headers = rows[0].map((h) => h.trim());
@@ -137,9 +138,7 @@ async function handleConfirmDonation(req: VercelRequest, res: VercelResponse) {
     const confirmedIndex = headers.indexOf("Confirmed");
 
     if (idIndex === -1 || confirmedIndex === -1) {
-      return res.status(500).json({
-        message: "Sheet missing required columns (UniqueId / Confirmed)",
-      });
+      return respondError(res, "Sheet missing required columns (UniqueId / Confirmed)", 500);
     }
 
     // Find the donation row
@@ -148,7 +147,7 @@ async function handleConfirmDonation(req: VercelRequest, res: VercelResponse) {
     );
 
     if (targetRowIndex === -1) {
-      return res.status(404).json({ message: "Donation not found" });
+      return respondError(res, "Donation not found", 404);
     }
 
     // Update Confirmed → true
@@ -170,7 +169,7 @@ async function handleConfirmDonation(req: VercelRequest, res: VercelResponse) {
     );
 
     if (!data.Email) {
-      return res.status(400).json({ message: "Missing donor email" });
+      return respondError(res, "Missing donor email", 400);
     }
 
     // Send confirmation email to donor
@@ -196,12 +195,9 @@ async function handleConfirmDonation(req: VercelRequest, res: VercelResponse) {
 
     await transporter.sendMail(mailOptions);
 
-    return res.json({
-      success: true,
-      message: "Donation confirmed and email sent",
-    });
+    return res.status(200).json({ message: "Donation confirmed and email sent" });
   } catch (err) {
     console.error("❌ Failed to confirm donation:", err);
-    return res.status(500).json({ message: "Failed to confirm donation" });
+    return respondError(res, "Failed to confirm donation", 500);
   }
 }
