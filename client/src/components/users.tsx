@@ -221,7 +221,8 @@ export default function UsersPage() {
       "Administration",
       "Preacher",
       "Youth Minister",
-      "President"
+      "President",
+      "Sponser",
     ];
 
   const uniqueLocations =

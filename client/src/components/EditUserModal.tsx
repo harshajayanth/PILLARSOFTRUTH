@@ -74,7 +74,8 @@ const POSITIONS = [
   "Administration",
   "Preacher",
   "Youth Minister",
-  "President"
+  "President",
+  "Sponser",
 ];
 
 // =====================================

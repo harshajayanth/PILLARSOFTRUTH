@@ -4,6 +4,7 @@ import type {
 } from "@vercel/node";
 
 import { chatMessageSchema } from "../shared/schema.js";
+
 import {
   getUserFromToken,
   respondSuccess,
@@ -36,7 +37,8 @@ export default async function handler(
     // =====================================
     // GET LOGGED IN USER
     // =====================================
-    const senderUser = getUserFromToken(req);
+    const senderUser =
+      getUserFromToken(req);
 
     // =====================================
     // VALIDATE REQUEST
@@ -47,32 +49,38 @@ export default async function handler(
       );
 
     if (!validation.success) {
-      return respondError(res, "Invalid message data", 400);
+      return respondError(
+        res,
+        "Invalid message data",
+        400
+      );
     }
 
     const {
       message,
       route,
+      subject,
       senderEmail:
         providedEmail,
-    } =
-      validation.data;
+    } = validation.data;
 
     // =====================================
     // FINAL SENDER INFO
     // =====================================
     const senderEmail =
-      senderUser
-        ?.email ||
+      senderUser?.email ||
       providedEmail;
 
     const senderName =
-      senderUser
-        ?.name ||
+      senderUser?.name ||
       "Anonymous";
 
     if (!senderEmail) {
-      return respondError(res, "Sender email required", 400);
+      return respondError(
+        res,
+        "Sender email required",
+        400
+      );
     }
 
     // =====================================
@@ -90,20 +98,14 @@ export default async function handler(
     // =====================================
     // ROUTE RECIPIENTS
     // =====================================
-    let recipients: string[] =
-      [];
+    let recipients: string[] = [];
 
-    if (
-      route ===
-      "admin"
-    ) {
-      recipients =
-        adminEmails;
+    if (route === "admin") {
+      recipients = adminEmails;
     }
 
     else if (
-      route ===
-      "members"
+      route === "members"
     ) {
       recipients =
         memberEmails;
@@ -137,76 +139,66 @@ export default async function handler(
     // REMOVE EMPTY EMAILS
     // =====================================
     recipients =
-      recipients.filter(
-        Boolean
-      );
+      recipients.filter(Boolean);
 
     // =====================================
     // REMOVE DUPLICATES
     // =====================================
     recipients =
       Array.from(
-        new Set(
-          recipients
-        )
+        new Set(recipients)
       );
 
     // =====================================
     // VALIDATE RECIPIENTS
     // =====================================
     if (recipients.length === 0) {
-      return respondError(res, "No recipients found", 404);
+      return respondError(
+        res,
+        "No recipients found",
+        404
+      );
     }
 
     // =====================================
     // SEND EMAIL
     // =====================================
-    const mailOptions =
-      {
-        // SMTP SAFE
-        from: `"${escapeHtml(senderName)}" <${escapeHtml(ADMIN_EMAIL)}>`,
+    const mailOptions = {
+      // SMTP SAFE
+      from: `"${escapeHtml(senderName)}" <${escapeHtml(ADMIN_EMAIL)}>`,
+      
+      // REAL REPLY TARGET
+      replyTo: senderEmail,
 
-        // REAL REPLY TARGET
-        replyTo:
-          senderEmail,
+      // RECIPIENTS
+      to: recipients.join(","),
 
-        // RECIPIENTS BASED ON ROUTE
-        to: recipients.join(
-          ","
-        ),
+      // COPY ADMINS
+      cc: adminEmails.join(","),
 
-        // ALWAYS SEND COPY TO ADMINS
-        cc: adminEmails.join(
-          ","
-        ),
+      // DYNAMIC SUBJECT
+      subject: escapeHtml(subject),
 
-        subject: `Community Chat - ${route}`,
+      // GMAIL STYLE BODY
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #202124; line-height: 1.6;">
 
-        html: `
-          <h2>
-            New Community Chat Message
-          </h2>
+          <p>
+            ${escapeHtml(message)}
+          </p>
 
-          <p><strong>From:</strong> ${escapeHtml(senderName)} (${escapeHtml(senderEmail)})</p>
-          <p><strong>Route:</strong> ${escapeHtml(route)}</p>
+          <br />
 
           <p>
             <strong>
-              Message:
+              From:
             </strong>
+            ${escapeHtml(senderEmail)}
           </p>
 
-          <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 10px 0;">
-            ${escapeHtml(message)}
-          </div>
-
-          <p>
-            <em>
-              Replying to this email will directly reply to: ${escapeHtml(senderEmail)}
-            </em>
-          </p>
-        `,
-      };
+        </div>
+      `,
+    };
 
     // =====================================
     // SEND MAIL
@@ -216,14 +208,20 @@ export default async function handler(
     );
 
     return respondSuccess(res, {
-      message: "Message sent successfully",
+      message:
+        "Message sent successfully",
     });
+
   } catch (error) {
     console.error(
       "Chat message error:",
       error
     );
 
-    return respondError(res, "Failed to send message", 500);
+    return respondError(
+      res,
+      "Failed to send message",
+      500
+    );
   }
 }

@@ -449,7 +449,8 @@ export default function MembersModal({
       "Administration",
       "Preacher",
       "Youth Minister",
-      "President"
+      "President",
+      "Sponser",
     ];
 
   const uniqueLocations =
