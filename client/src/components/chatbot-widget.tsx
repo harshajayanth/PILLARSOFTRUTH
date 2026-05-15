@@ -1,34 +1,26 @@
-import {
-  useState,
-} from "react";
+import { useState } from "react";
 
-import {
-  useMutation,
-} from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
 
-import {
-  Button,
-} from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 
-import {
-  Input,
-} from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 
-import {
-  useToast,
-} from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 
 import {
   MessageCircle,
   X,
   Send,
+  ArrowLeft,
   Bus,
   Users,
+  Mail,
 } from "lucide-react";
 
 import {
@@ -36,21 +28,13 @@ import {
   chatMessageSchema,
 } from "@shared/schema";
 
-import {
-  apiRequest,
-} from "@/lib/queryClient";
+import { apiRequest } from "@/lib/queryClient";
 
-import {
-  useAuth,
-} from "@/lib/auth";
+import { useAuth } from "@/lib/auth";
 
 export default function ChatbotWidget() {
-  const [
-    isOpen,
-    setIsOpen,
-  ] = useState(
-    false
-  );
+  const [isOpen, setIsOpen] =
+    useState(false);
 
   const [
     selectedRoute,
@@ -64,89 +48,75 @@ export default function ChatbotWidget() {
     | null
   >(null);
 
-  const [
-    message,
-    setMessage,
-  ] = useState(
-    ""
-  );
+  const [message, setMessage] =
+    useState("");
 
-  const { toast } =
-    useToast();
+  const { toast } = useToast();
 
-  const { user } =
-    useAuth();
+  const { user } = useAuth();
+
+  const [subject, setSubject] =
+    useState("");
+
+  const MAX_MESSAGE_LENGTH = 1000;
+
+  const MAX_SUBJECT_LENGTH = 100;
 
   // =====================================
   // SEND MESSAGE
   // =====================================
-  const chatMutation =
-    useMutation({
-      mutationFn: (
-        data: ChatMessage
-      ) =>
-        apiRequest(
-          "POST",
-          "/api/chat",
-          data
-        ),
+  const chatMutation = useMutation({
+    mutationFn: (
+      data: ChatMessage
+    ) =>
+      apiRequest(
+        "POST",
+        "/api/chat",
+        data
+      ),
 
-      onSuccess:
-        () => {
-          toast({
-            title:
-              "Message Sent!",
+    onSuccess: () => {
+      toast({
+        title: "Message Sent!",
 
-            description:
-              "Your message has been delivered successfully.",
-          });
+        description:
+          "Your message has been delivered successfully.",
+      });
 
-          setMessage(
-            ""
-          );
+      setMessage("");
+      setSubject("");
 
-          setSelectedRoute(
-            null
-          );
+      setSelectedRoute(null);
 
-          setIsOpen(
-            false
-          );
-        },
+      setIsOpen(false);
+    },
 
-      onError: (
-        error: any
-      ) => {
-        toast({
-          title:
-            "Failed to Send",
+    onError: (error: any) => {
+      toast({
+        title: "Failed to Send",
 
-          description:
-            error.message ||
-            "Please try again later.",
+        description:
+          error.message ||
+          "Please try again later.",
 
-          variant:
-            "destructive",
-        });
-      },
-    });
+        variant: "destructive",
+      });
+    },
+  });
 
   // =====================================
   // SELECT ROUTE
   // =====================================
-  const handleRouteSelect =
-    (
-      route:
-        | "admin"
-        | "members"
-        | "youth_leaders"
-        | "organisation"
-        | "communication"
-    ) => {
-      setSelectedRoute(
-        route
-      );
-    };
+  const handleRouteSelect = (
+    route:
+      | "admin"
+      | "members"
+      | "youth_leaders"
+      | "organisation"
+      | "communication"
+  ) => {
+    setSelectedRoute(route);
+  };
 
   // =====================================
   // SEND MESSAGE
@@ -155,24 +125,43 @@ export default function ChatbotWidget() {
     () => {
       if (
         !message.trim() ||
+        !subject.trim() ||
         !selectedRoute
       )
         return;
+
+      if (
+        message.length >
+        MAX_MESSAGE_LENGTH
+      ) {
+        toast({
+          title:
+            "Message Too Long",
+
+          description: `Maximum ${MAX_MESSAGE_LENGTH} characters allowed.`,
+
+          variant:
+            "destructive",
+        });
+
+        return;
+      }
 
       const chatData: ChatMessage =
         {
           message:
             message.trim(),
 
+          subject:
+            subject.trim(),
+
           route:
             selectedRoute,
 
           senderEmail:
-            user?.email ||
-            "",
+            user?.email || "",
         };
 
-      // VALIDATE
       const validation =
         chatMessageSchema.safeParse(
           chatData
@@ -205,298 +194,415 @@ export default function ChatbotWidget() {
     };
 
   // =====================================
-  // ENTER KEY
-  // =====================================
-  const handleKeyPress =
-    (
-      e: React.KeyboardEvent
-    ) => {
-      if (
-        e.key ===
-          "Enter" &&
-        !e.shiftKey
-      ) {
-        e.preventDefault();
-
-        handleSendMessage();
-      }
-    };
-
-  // =====================================
   // RESET
   // =====================================
-  const resetChat =
-    () => {
-      setSelectedRoute(
-        null
-      );
+  const resetChat = () => {
+    setSelectedRoute(null);
 
-      setMessage(
-        ""
-      );
-    };
+    setMessage("");
+    setSubject("");
+  };
 
   // =====================================
   // ROUTE LABEL
   // =====================================
-  const getRouteLabel =
-    () => {
-      switch (
-        selectedRoute
-      ) {
-        case "admin":
-          return "Community Admin";
+  const getRouteLabel = () => {
+    switch (selectedRoute) {
+      case "admin":
+        return "Community Admin";
 
-        case "members":
-          return "Community Members";
+      case "members":
+        return "Community Members";
 
-        case "youth_leaders":
-          return "Youth Leaders";
+      case "youth_leaders":
+        return "Youth Leaders";
 
-        case "organisation":
-          return "Organisation Team";
+      case "organisation":
+        return "Organisation Team";
 
-        case "communication":
-          return "Communication Team";
+      case "communication":
+        return "Communication Team";
 
-        default:
-          return "";
-      }
-    };
+      default:
+        return "";
+    }
+  };
 
   // =====================================
   // AUTH CHECK
   // =====================================
-  if (
-    !user?.isAuthenticated
-  )
+  if (!user?.isAuthenticated)
     return null;
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {/* CHAT WINDOW */}
-      {isOpen && (
-        <Card className="mb-4 w-80 h-[500px] shadow-2xl border border-gray-200 overflow-hidden">
-          {/* HEADER */}
-          <div className="bg-primary text-white p-4 flex items-center justify-between">
-            <div className="flex items-center">
-              <MessageCircle className="h-5 w-5 mr-2" />
+    <>
+      {/* OPEN BUTTON */}
+      {!isOpen && (
+        <div className="fixed bottom-6 right-6 z-50">
+          <Button
+            onClick={() =>
+              setIsOpen(true)
+            }
+            className="bg-primary text-white w-14 h-14 rounded-full shadow-xl hover:bg-blue-700 transition-all duration-300"
+          >
+            <MessageCircle className="h-6 w-6" />
+          </Button>
+        </div>
+      )}
 
-              <span className="font-semibold">
-                Community
-                Chat
-              </span>
+      {/* MODAL */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+          <Card className="w-[95vw] sm:w-[720px] h-[90vh] sm:h-[700px] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+            {/* HEADER */}
+            <div className="border-b bg-white px-6 py-4 flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-primary/10 flex items-center justify-center">
+                  <Mail className="h-5 w-5 text-primary" />
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Community Mail
+                  </h2>
+
+                  <p className="text-sm text-gray-500">
+                    Send messages to
+                    community teams
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => {
+                  setIsOpen(false);
+
+                  resetChat();
+                }}
+                className="rounded-full hover:bg-gray-100"
+              >
+                <X className="h-5 w-5" />
+              </Button>
             </div>
 
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                setIsOpen(
-                  false
-                );
-
-                resetChat();
-              }}
-              className="text-white hover:text-gray-200 hover:bg-blue-700"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* CONTENT */}
-          <CardContent className="p-4 h-[340px] overflow-y-auto bg-gray-50">
+            {/* ROUTE SELECTION */}
             {!selectedRoute ? (
-              <div>
-                <p className="text-sm text-gray-600 mb-3">
-                  Who would
-                  you like
-                  to connect
-                  with?
-                </p>
+              <CardContent className="p-6 bg-gray-50 flex-1 overflow-y-auto">
+                <div className="mb-6">
+                  <h3 className="text-2xl font-semibold text-gray-900 mb-2">
+                    Choose Recipient
+                  </h3>
 
-                <div className="space-y-2">
+                  <p className="text-sm text-gray-600">
+                    Select the team you
+                    want to contact.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {/* ADMIN */}
-                  <Button
+                  <button
                     onClick={() =>
                       handleRouteSelect(
                         "admin"
                       )
                     }
-                    className="w-full bg-primary text-white hover:bg-blue-700 transition-colors text-sm"
+                    className="group bg-white border rounded-2xl p-5 text-left hover:border-primary hover:shadow-lg transition-all duration-300"
                   >
-                    <Bus className="h-4 w-4 mr-2" />
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center mb-4">
+                      <Bus className="h-6 w-6 text-blue-700" />
+                    </div>
 
-                    Community
-                    Admin
-                  </Button>
+                    <h4 className="font-semibold text-gray-900 mb-1">
+                      Community Admin
+                    </h4>
+
+                    <p className="text-sm text-gray-500">
+                      Send queries
+                      directly to
+                      administrators.
+                    </p>
+                  </button>
 
                   {/* MEMBERS */}
-                  <Button
+                  <button
                     onClick={() =>
                       handleRouteSelect(
                         "members"
                       )
                     }
-                    className="w-full bg-secondary text-white hover:bg-purple-700 transition-colors text-sm"
+                    className="group bg-white border rounded-2xl p-5 text-left hover:border-purple-500 hover:shadow-lg transition-all duration-300"
                   >
-                    <Users className="h-4 w-4 mr-2" />
+                    <div className="w-12 h-12 rounded-xl bg-purple-100 flex items-center justify-center mb-4">
+                      <Users className="h-6 w-6 text-purple-700" />
+                    </div>
 
-                    Community
-                    Members
-                  </Button>
+                    <h4 className="font-semibold text-gray-900 mb-1">
+                      Community Members
+                    </h4>
+
+                    <p className="text-sm text-gray-500">
+                      Reach out to all
+                      community members.
+                    </p>
+                  </button>
 
                   {/* YOUTH LEADERS */}
-                  <Button
+                  <button
                     onClick={() =>
                       handleRouteSelect(
                         "youth_leaders"
                       )
                     }
-                    className="w-full bg-green-600 text-white hover:bg-green-700 transition-colors text-sm"
+                    className="group bg-white border rounded-2xl p-5 text-left hover:border-green-500 hover:shadow-lg transition-all duration-300"
                   >
-                    <Users className="h-4 w-4 mr-2" />
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center mb-4">
+                      <Users className="h-6 w-6 text-green-700" />
+                    </div>
 
-                    Youth
-                    Leaders
-                  </Button>
+                    <h4 className="font-semibold text-gray-900 mb-1">
+                      Youth Leaders
+                    </h4>
+
+                    <p className="text-sm text-gray-500">
+                      Connect with youth
+                      leadership teams.
+                    </p>
+                  </button>
 
                   {/* ORGANISATION */}
-                  <Button
+                  <button
                     onClick={() =>
                       handleRouteSelect(
                         "organisation"
                       )
                     }
-                    className="w-full bg-black text-white hover:bg-gray-800 transition-colors text-sm"
+                    className="group bg-white border rounded-2xl p-5 text-left hover:border-gray-700 hover:shadow-lg transition-all duration-300"
                   >
-                    <Users className="h-4 w-4 mr-2" />
+                    <div className="w-12 h-12 rounded-xl bg-gray-200 flex items-center justify-center mb-4">
+                      <Users className="h-6 w-6 text-gray-800" />
+                    </div>
 
-                    Organisation
-                    Team
-                  </Button>
+                    <h4 className="font-semibold text-gray-900 mb-1">
+                      Organisation Team
+                    </h4>
+
+                    <p className="text-sm text-gray-500">
+                      Contact
+                      organisational
+                      management.
+                    </p>
+                  </button>
 
                   {/* COMMUNICATION */}
-                  <Button
+                  <button
                     onClick={() =>
                       handleRouteSelect(
                         "communication"
                       )
                     }
-                    className="w-full bg-yellow-600 text-white hover:bg-yellow-700 transition-colors text-sm"
+                    className="group bg-white border rounded-2xl p-5 text-left hover:border-yellow-500 hover:shadow-lg transition-all duration-300 sm:col-span-2"
                   >
-                    <Users className="h-4 w-4 mr-2" />
+                    <div className="w-12 h-12 rounded-xl bg-yellow-100 flex items-center justify-center mb-4">
+                      <Users className="h-6 w-6 text-yellow-700" />
+                    </div>
 
-                    Communication
-                    Team
-                  </Button>
+                    <h4 className="font-semibold text-gray-900 mb-1">
+                      Communication Team
+                    </h4>
+
+                    <p className="text-sm text-gray-500">
+                      Discuss
+                      announcements and
+                      communications.
+                    </p>
+                  </button>
                 </div>
-              </div>
+              </CardContent>
             ) : (
-              <div>
-                {/* SELECTED ROUTE */}
-                <div className="mb-4 p-3 bg-white rounded-lg border">
-                  <p className="text-sm text-gray-600">
-                    Sending
-                    message
-                    to:{" "}
-                    <span className="font-semibold">
-                      {getRouteLabel()}
-                    </span>
-                  </p>
+              /* COMPOSE SCREEN */
+              <div className="flex flex-col flex-1 min-h-0 bg-white">
+                {/* COMPOSE HEADER */}
+                <div className="border-b px-6 py-4 bg-gray-50 flex items-center justify-between shrink-0">
+                  <div>
+                    <h3 className="font-semibold text-lg text-gray-900">
+                      New Message
+                    </h3>
+
+                    <p className="text-sm text-gray-500">
+                      Compose your
+                      message
+                    </p>
+                  </div>
 
                   <Button
                     variant="ghost"
-                    size="sm"
-                    onClick={
-                      resetChat
-                    }
-                    className="text-primary hover:text-blue-700 p-0 h-auto"
+                    onClick={resetChat}
+                    className="rounded-full hover:bg-primary/10 text-primary"
                   >
-                    Change
-                    recipient
+                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    Change Recipient
                   </Button>
                 </div>
 
-                <div className="text-sm text-gray-600">
-                  <p>
-                    Type your
-                    message
-                    below and
-                    we'll
-                    route it
-                    appropriately.
-                  </p>
+                {/* EMAIL DETAILS */}
+                <div className="px-6 py-5 border-b bg-white space-y-5 shrink-0">
+                  {/* SUBJECT */}
+                  <div className="flex items-start gap-4">
+                    <span className="text-sm font-medium text-gray-500 min-w-[55px] pt-3">
+                      Subject
+                    </span>
+
+                    <input
+                      type="text"
+                      value={subject}
+                      onChange={(e) => {
+                        if (
+                          e.target.value.length <=
+                          MAX_SUBJECT_LENGTH
+                        ) {
+                          setSubject(
+                            e.target.value
+                          );
+                        }
+                      }}
+                      placeholder="Enter email subject..."
+                      disabled={
+                        chatMutation.isPending
+                      }
+                      className="
+                        flex-1
+                        border
+                        rounded-xl
+                        px-4
+                        py-3
+                        text-sm
+                        outline-none
+                        focus:ring-2
+                        focus:ring-primary/20
+                        focus:border-primary
+                        bg-white
+                      "
+                    />
+                  </div>
+                  {/* TO */}
+                  <div className="flex items-start gap-4">
+                    <span className="text-sm font-medium text-gray-500 min-w-[55px] pt-1">
+                      To
+                    </span>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Badge className="rounded-full px-4 py-1.5 bg-primary text-white text-sm font-medium hover:bg-primary">
+                        {getRouteLabel()}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  {/* FROM */}
+                  <div className="flex items-start gap-4">
+                    <span className="text-sm font-medium text-gray-500 min-w-[55px] pt-1">
+                      From
+                    </span>
+
+                    <div className="flex flex-wrap gap-2">
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full px-4 py-1.5 text-sm font-medium"
+                      >
+                        {user?.email}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BODY */}
+                <div className="flex-1 flex flex-col min-h-0 bg-white">
+                  <div className="flex-1 overflow-auto px-6 py-5">
+                    <textarea
+                      value={message}
+                      onChange={(
+                        e
+                      ) => {
+                        const value =
+                          e.target
+                            .value;
+
+                        if (
+                          value.length <=
+                          MAX_MESSAGE_LENGTH
+                        ) {
+                          setMessage(
+                            value
+                          );
+                        }
+                      }}
+                      placeholder="Write your message..."
+                      disabled={
+                        chatMutation.isPending
+                      }
+                      className="
+                        w-full
+                        h-full
+                        min-h-[300px]
+                        resize-none
+                        border-0
+                        outline-none
+                        bg-transparent
+                        text-[15px]
+                        leading-7
+                        focus:outline-none
+                      "
+                    />
+                  </div>
+
+          
+                </div>
+
+                {/* FOOTER */}
+                <div className="border-t bg-gray-50 px-6 py-4 flex items-center justify-between shrink-0">
+                  
+                    <p
+                      className={`text-sm font-medium ${
+                        message.length >=
+                        MAX_MESSAGE_LENGTH
+                          ? "text-red-500"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {message.length}/
+                      {
+                        MAX_MESSAGE_LENGTH
+                      }
+                    </p>
+         
+
+                  <Button
+                    onClick={
+                      handleSendMessage
+                    }
+                    disabled={
+                      !message.trim() ||
+                      !subject.trim() ||
+                      chatMutation.isPending
+                    }
+                    className="rounded-full px-6"
+                  >
+                    {chatMutation.isPending ? (
+                      <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2" />
+                    ) : (
+                      <Send className="h-4 w-4 mr-2" />
+                    )}
+
+                    Send Message
+                  </Button>
                 </div>
               </div>
             )}
-          </CardContent>
-
-          {/* MESSAGE INPUT */}
-          {selectedRoute && (
-            <div className="p-4 border-t border-gray-200 bg-white">
-              <div className="flex space-x-2">
-                <Input
-                  value={
-                    message
-                  }
-                  onChange={(
-                    e
-                  ) =>
-                    setMessage(
-                      e
-                        .target
-                        .value
-                    )
-                  }
-                  onKeyDown={
-                    handleKeyPress
-                  }
-                  placeholder="Type your message..."
-                  className="flex-1 text-sm"
-                  disabled={
-                    chatMutation.isPending
-                  }
-                />
-
-                <Button
-                  onClick={
-                    handleSendMessage
-                  }
-                  disabled={
-                    !message.trim() ||
-                    chatMutation.isPending
-                  }
-                  className="bg-primary text-white hover:bg-blue-700 transition-colors"
-                  size="sm"
-                >
-                  {chatMutation.isPending ? (
-                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
-                  ) : (
-                    <Send className="h-4 w-4" />
-                  )}
-                </Button>
-              </div>
-            </div>
-          )}
-        </Card>
+          </Card>
+        </div>
       )}
-
-      {/* TOGGLE BUTTON */}
-      <Button
-        onClick={() =>
-          setIsOpen(
-            !isOpen
-          )
-        }
-        className="bg-primary text-white w-14 h-14 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-300 flex items-center justify-center"
-      >
-        {isOpen ? (
-          <X className="h-6 w-6" />
-        ) : (
-          <MessageCircle className="h-6 w-6" />
-        )}
-      </Button>
-    </div>
+    </>
   );
 }

@@ -99,6 +99,10 @@ export const chatMessageSchema =
           1000,
           "Message is too long"
         ),
+    subject: z
+      .string()
+      .min(1)
+      .max(200),
 
     route:
       z.enum([
